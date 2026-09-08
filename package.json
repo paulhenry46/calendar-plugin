@@ -1,0 +1,19 @@
+{
+  "name": "bulwark-calendar-true-e2e",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "esbuild ./src/index.tsx --bundle --format=cjs --platform=browser --charset=utf8 --outfile=dist/index.js --external:react --external:react-dom --external:react-dom/client --external:react/jsx-runtime --external:@plugin-host",
+    "dev": "npm run build -- --watch",
+    "package": "npm run build && cp manifest.json dist/ && cd dist && zip -X ../calendare2e.zip manifest.json index.js"
+  },
+  "dependencies": {
+  },
+  "devDependencies": {
+    "@types/node": "^26.1.0",
+    "@types/react": "^19.2.17",
+    "esbuild": "^0.24.0",
+    "typescript": "^6.0.3"
+  }
+}

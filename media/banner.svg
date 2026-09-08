@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg
+   viewBox="0 0 320 120"
+   width="320"
+   height="120"
+   version="1.1"
+   id="svg3"
+   sodipodi:docname="banner.svg"
+   inkscape:version="1.4.4 (1:1.4.4+202605061435+dcaf3e7d9e)"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <defs
+     id="defs3" />
+  <sodipodi:namedview
+     id="namedview3"
+     pagecolor="#ffffff"
+     bordercolor="#000000"
+     borderopacity="0.25"
+     inkscape:showpageshadow="2"
+     inkscape:pageopacity="0.0"
+     inkscape:pagecheckerboard="0"
+     inkscape:deskcolor="#d1d1d1"
+     inkscape:zoom="1.9677456"
+     inkscape:cx="175.32754"
+     inkscape:cy="59.967102"
+     inkscape:window-width="1920"
+     inkscape:window-height="998"
+     inkscape:window-x="0"
+     inkscape:window-y="0"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="svg3" />
+  <rect
+     width="320"
+     height="120"
+     rx="12"
+     fill="#1e2a52"
+     id="rect1"
+     style="fill:#662541;fill-opacity:1" />
+  <g
+     transform="translate(28 30)"
+     id="g2" />
+  <rect
+     width="60.765862"
+     height="60.765862"
+     rx="13.292532"
+     fill="#3b5bdb"
+     id="rect1-3"
+     style="fill:#db3b62;fill-opacity:1;stroke-width:0.949467"
+     x="27.636721"
+     y="29.738911" />
+  <path
+     d="m 56.114322,67.092616 h 3.810831 q 0.476347,0 0.820386,-0.396962 0.34403,-0.39696 0.238174,-0.873314 l -1.005637,-5.557457 q 1.05856,-0.529281 1.667235,-1.534916 0.608674,-1.005636 0.608674,-2.222984 0,-1.746628 -1.24381,-2.99044 -1.243811,-1.243811 -2.99044,-1.243811 -1.746629,0 -2.99044,1.243811 -1.243816,1.243812 -1.243816,2.99044 0,1.217348 0.608674,2.222984 0.608673,1.005635 1.667241,1.534916 l -1.005635,5.557457 q -0.105857,0.476354 0.238177,0.873314 0.344032,0.396962 0.820386,0.396962 z M 57.331669,81.64786 Q 57.0141,81.594937 56.696531,81.489075 49.551226,79.107308 45.316973,72.676537 41.08272,66.245766 41.08272,58.835823 V 48.832401 q 0,-1.323204 0.767459,-2.381767 0.767458,-1.058563 1.984806,-1.534917 l 12.702762,-4.763534 q 0.740994,-0.264641 1.481988,-0.264641 0.740992,0 1.481993,0.264641 l 12.702753,4.763534 q 1.217349,0.476354 1.984812,1.534917 0.767454,1.058563 0.767454,2.381767 v 10.003422 q 0,7.409943 -4.234251,13.840714 -4.234251,6.430771 -11.379556,8.812538 -0.317568,0.105857 -0.635137,0.158785 -0.317568,0.05293 -0.688068,0.05293 -0.370497,0 -0.688066,-0.05293 z m 0.688066,-4.181325 q 5.504532,-1.746629 9.103647,-6.986517 3.599114,-5.239887 3.599114,-11.644195 V 48.832401 L 58.019735,44.068867 45.316973,48.832401 v 10.003422 q 0,6.404308 3.599115,11.644195 3.599115,5.239888 9.103647,6.986517 z m 0,-16.725298 z"
+     id="path1-5"
+     style="fill:#ffffff;stroke-width:0.0529282" />
+  <text
+     x="108"
+     y="56"
+     fill="#ffffff"
+     font-family="system-ui, sans-serif"
+     font-size="26px"
+     font-weight="700"
+     id="text2">PGP True E2E</text>
+  <text
+     x="108.35935"
+     y="80.203255"
+     fill="#9db2ff"
+     font-family="system-ui, sans-serif"
+     font-size="14px"
+     id="text3"
+     style="fill:#db3b62;fill-opacity:1">PGP built for daily use</text>
+</svg>
