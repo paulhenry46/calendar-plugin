@@ -1,0 +1,126 @@
+import {  SessionKeysEntry } from '../types.ts';
+const CHANNEL_NAME = 'pgp-session-bus';
+
+let _backgroundSessionKeys: Record<string, SessionKeysEntry> = {};
+
+type SessionMessage =
+  | { type: 'PING_STATUS'; requestId: string }
+  | { type: 'PONG_STATUS'; requestId: string; isUnlocked: boolean }
+  | { type: 'SET_KEY'; secret: string }
+  | { type: 'KEY_UPDATED'; isUnlocked: boolean }
+  | { type: 'CLEAR_KEY'; id: string }
+  | { type: 'REQUEST_KEY_DATA'; requestId: string; keyId: string }
+  | { type: 'RESPONSE_KEY_DATA'; requestId: string; keyEntry: SessionKeysEntry | null };
+
+export function initBackgroundSessionListener(): void {
+  const channel = new BroadcastChannel(CHANNEL_NAME);
+
+  channel.onmessage = (event: MessageEvent<SessionMessage>) => {
+    const msg = event.data;
+
+    switch (msg.type) {
+      case 'PING_STATUS':
+        channel.postMessage({
+          type: 'PONG_STATUS',
+          requestId: msg.requestId,
+          isUnlocked: Object.keys(_backgroundSessionKeys).length > 0
+        });
+        break;
+
+      case 'SET_KEY':
+        //todo
+        break;
+
+      case 'CLEAR_KEY':
+        // remove keyId from _backgroundSessionKeys if provided, otherwise clear all keys
+        if (msg.id) {
+          delete _backgroundSessionKeys[msg.id];
+        }else{
+          _backgroundSessionKeys = {};
+        }
+        channel.postMessage({ type: 'KEY_UPDATED', isUnlocked: false });
+        break;
+    
+      case 'REQUEST_KEY_DATA':
+        channel.postMessage({
+          type: 'RESPONSE_KEY_DATA',
+          requestId: msg.requestId,
+          keyEntry: _backgroundSessionKeys[msg.keyId] || null
+        });
+        break;
+
+    }
+  };
+}
+
+export function getBackgroundSessionKey(id: string): SessionKeysEntry | null {
+  return _backgroundSessionKeys[id] || null;
+}
+
+export function fetchKeyFromBackground(keyId: string): Promise<SessionKeysEntry | null> {
+  return new Promise((resolve) => {
+    const channel = new BroadcastChannel(CHANNEL_NAME);
+    const requestId = Math.random().toString(36).substring(2);
+
+    const timeout = setTimeout(() => {
+      channel.close();
+      resolve(null);
+    }, 300);
+
+    channel.onmessage = (event: MessageEvent<SessionMessage>) => {
+      if (event.data.type === 'RESPONSE_KEY_DATA' && event.data.requestId === requestId) {
+        clearTimeout(timeout);
+        channel.close();
+        resolve(event.data.keyEntry);
+      }
+    };
+
+    channel.postMessage({ type: 'REQUEST_KEY_DATA', requestId, keyId });
+  });
+}
+
+export function checkIsKeyUnlocked(): Promise<boolean> {
+  return new Promise((resolve) => {
+    const channel = new BroadcastChannel(CHANNEL_NAME);
+    const requestId = Math.random().toString(36).substring(2);
+
+    const timeout = setTimeout(() => {
+      channel.close();
+      resolve(false);
+    }, 300);
+
+    channel.onmessage = (event: MessageEvent<SessionMessage>) => {
+      if (event.data.type === 'PONG_STATUS' && event.data.requestId === requestId) {
+        clearTimeout(timeout);
+        channel.close();
+        resolve(event.data.isUnlocked);
+      }
+    };
+
+    channel.postMessage({ type: 'PING_STATUS', requestId });
+  });
+}
+
+export function broadcastUnlockKey(keyEntry: SessionKeysEntry): void {
+  const channel = new BroadcastChannel(CHANNEL_NAME);
+  channel.postMessage({ type: 'SET_KEY', keyEntry });
+  channel.close();
+}
+
+export function broadcastLockKey(keyId: string): void {
+  const channel = new BroadcastChannel(CHANNEL_NAME);
+  channel.postMessage({ type: 'CLEAR_KEY', id: keyId });
+  channel.close();
+}
+
+export function subscribeToKeyUpdates(callback: (isUnlocked: boolean) => void): () => void {
+  const channel = new BroadcastChannel(CHANNEL_NAME);
+  
+  channel.onmessage = (event: MessageEvent<SessionMessage>) => {
+    if (event.data.type === 'KEY_UPDATED') {
+      callback(event.data.isUnlocked);
+    }
+  };
+
+  return () => channel.close();
+}

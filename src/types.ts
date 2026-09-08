@@ -163,3 +163,10 @@ export interface CalendarRelation {
   '@type': 'Relation';
   relation: Record<string, boolean> | null;
 }
+
+//-----------Crypto
+
+export interface SessionKeysEntry {
+  id: string; 
+  aesKey?: CryptoKey;
+}
