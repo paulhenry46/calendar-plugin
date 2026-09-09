@@ -1,14 +1,18 @@
-import { encryptString } from "../crypto/encrypt.ts";
+import { encryptString, generateMonthIndex } from "../crypto/encrypt.ts";
 import { CalendarEvent } from "../types.ts";
+import { getCoveredMonths } from "../util.ts";
 
 export async function encryptCalendarEvent(
   event: CalendarEvent,
-  key: CryptoKey
+  aesKey: CryptoKey,
+  hmacIndexKey: CryptoKey
 ): Promise<CalendarEvent> {
-  const eventDate = new Date(event.start || event.utcStart || Date.now());
-  const monthString = `${eventDate.getUTCFullYear()}-${String(eventDate.getUTCMonth() + 1).padStart(2, '0')}`;
+  const coveredMonths = getCoveredMonths(event.start || event.utcStart || '1970-01-01T00:00:00Z', event.duration, event.utcEnd);
 
-  const encryptedMonthTitle = await encryptString(monthString, key);
+  const monthHashes = await Promise.all(
+    coveredMonths.map(ym => generateMonthIndex(ym, hmacIndexKey))
+  );
+  const monthIndexTitle = monthHashes.join(',');
 
   const sensitivePayload = {
     title: event.title,
@@ -32,12 +36,12 @@ export async function encryptCalendarEvent(
 
   const encryptedDescription = await encryptString(
     JSON.stringify(sensitivePayload),
-    key
+    aesKey
   );
 
   return {
     ...event,
-    title: encryptedMonthTitle,
+    title: monthIndexTitle,
     description: encryptedDescription,
     utcStart: null,
     utcEnd: null,

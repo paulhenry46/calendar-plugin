@@ -169,4 +169,5 @@ export interface CalendarRelation {
 export interface SessionKeysEntry {
   id: string; 
   aesKey?: CryptoKey;
+  hmacKey?: CryptoKey;
 }

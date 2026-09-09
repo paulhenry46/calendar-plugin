@@ -3,9 +3,9 @@ import { CalendarEvent } from "../types.ts";
 
 export async function decryptCalendarEvent(
   encryptedEvent: CalendarEvent,
-  key: CryptoKey
+  aesKey: CryptoKey
 ): Promise<CalendarEvent> {
-  const decryptedJson = await decryptString(encryptedEvent.description, key);
+  const decryptedJson = await decryptString(encryptedEvent.description, aesKey);
   const sensitivePayload = JSON.parse(decryptedJson);
 
   return {

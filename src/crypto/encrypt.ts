@@ -1,4 +1,3 @@
-// Conversion d'un ArrayBuffer en chaîne Base64
 export function bufferToBase64(buffer: ArrayBuffer): string {
   const bytes = new Uint8Array(buffer);
   let binary = '';
@@ -8,7 +7,6 @@ export function bufferToBase64(buffer: ArrayBuffer): string {
   return btoa(binary);
 }
 
-// Conversion d'une chaîne Base64 en Uint8Array
 export function base64ToBuffer(base64: string): Uint8Array {
   const binary = atob(base64);
   const bytes = new Uint8Array(binary.length);
@@ -18,10 +16,6 @@ export function base64ToBuffer(base64: string): Uint8Array {
   return bytes;
 }
 
-/**
- * Chiffre une chaîne de caractères en AES-GCM.
- * Retourne le vecteur d'initialisation (IV) concaténé avec le texte chiffré, encodé en Base64.
- */
 export async function encryptString(text: string, key: CryptoKey): Promise<string> {
   const encoder = new TextEncoder();
   const data = encoder.encode(text);
@@ -40,9 +34,6 @@ export async function encryptString(text: string, key: CryptoKey): Promise<strin
   return bufferToBase64(combined.buffer);
 }
 
-/**
- * Déchiffre une chaîne Base64 (IV + ciphertext) générée par `encryptString`.
- */
 export async function decryptString(encryptedBase64: string, key: CryptoKey): Promise<string> {
   const combined = base64ToBuffer(encryptedBase64);
   const iv = combined.slice(0, 12);
