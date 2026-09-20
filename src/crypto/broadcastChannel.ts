@@ -1,5 +1,5 @@
 import {  SessionKeysEntry } from '../types.ts';
-const CHANNEL_NAME = 'pgp-session-bus';
+const CHANNEL_NAME = 'calendar-session-bus';
 
 let _backgroundSessionKeys: Record<string, SessionKeysEntry> = {};
 
@@ -57,7 +57,7 @@ export function getBackgroundSessionKey(id: string): SessionKeysEntry | null {
   return _backgroundSessionKeys[id] || null;
 }
 
-export function fetchKeyFromBackground(keyId: string): Promise<SessionKeysEntry | null> {
+export function fetchKeyFromBackground(accountId: string): Promise<SessionKeysEntry | null> {
   return new Promise((resolve) => {
     const channel = new BroadcastChannel(CHANNEL_NAME);
     const requestId = Math.random().toString(36).substring(2);
@@ -75,7 +75,7 @@ export function fetchKeyFromBackground(keyId: string): Promise<SessionKeysEntry 
       }
     };
 
-    channel.postMessage({ type: 'REQUEST_KEY_DATA', requestId, keyId });
+    channel.postMessage({ type: 'REQUEST_KEY_DATA', requestId, keyId: accountId });
   });
 }
 
