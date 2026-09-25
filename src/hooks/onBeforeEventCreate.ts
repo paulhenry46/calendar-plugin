@@ -1,6 +1,7 @@
 import { encryptString, generateMonthIndex } from "../crypto/encrypt.ts";
+import { getKeys } from "../crypto/getKey.ts";
 import { CalendarEvent } from "../types.ts";
-import { getCoveredMonths } from "../util.ts";
+import { getCoveredMonths, getCurrentAccountId } from "../util.ts";
 
 export async function encryptCalendarEvent(
   event: CalendarEvent,
@@ -59,4 +60,13 @@ export async function encryptCalendarEvent(
     links: null,
     relatedTo: null,
   };
+}
+
+export async function onBeforeEventCreate(event: CalendarEvent): Promise<CalendarEvent> {
+
+  const keys = await getKeys(event.accountId ? event.accountId : (await getCurrentAccountId() || ''));
+  if (!keys) {
+    throw new Error("No encryption keys found for this account.");
+  }
+  return encryptCalendarEvent(event, keys.dekAes, keys.dekHmac);
 }

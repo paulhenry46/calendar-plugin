@@ -164,6 +164,28 @@ export interface CalendarRelation {
   relation: Record<string, boolean> | null;
 }
 
+
+export interface CalendarEventFilterCondition {
+  inCalendars?: string[];
+  after?: string;
+  before?: string;
+  text?: string;
+  title?: string;
+  description?: string;
+  location?: string;
+  owner?: string;
+  attendee?: string;
+  participationStatus?: string;
+  uid?: string;
+  types?: string[];
+}
+export interface CalendarEventFilterOperator {
+  operator: 'AND' | 'OR' | 'NOT';
+  conditions: CalendarEventFilter[];
+}
+
+export type CalendarEventFilter = CalendarEventFilterCondition | CalendarEventFilterOperator;
+
 //-----------Crypto
 
 export interface SessionKeysEntry {
