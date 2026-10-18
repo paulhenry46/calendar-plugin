@@ -1,104 +1,58 @@
-import { encryptString, decryptString, generateMonthIndex } from "../crypto/encrypt.ts";
-import { getKeys } from "../crypto/getKey.ts";
-import { CalendarEvent } from "../types.ts";
-import { getCoveredMonths, getCurrentAccountId } from "../util.ts";
-import  host  from '@plugin-host';
+import host from '@plugin-host';
+import { decryptString, encryptString } from '../crypto/encrypt.ts';
+import { getKeys } from '../crypto/getKey.ts';
+import type { CalendarEvent } from '../types.ts';
+import { resolveAccountId } from '../util.ts';
+import {
+  computeMonthIndexTitle,
+  isEncryptedEvent,
+  pickSensitive,
+  PUBLIC_PLACEHOLDER,
+  SENSITIVE_FIELDS,
+} from './payload.ts';
 
-// Liste des champs sensibles stockés dans le payload chiffré
-const SENSITIVE_FIELDS: (keyof CalendarEvent)[] = [
-  "title",
-  "description",
-  "utcStart",
-  "utcEnd",
-  "start",
-  "duration",
-  "timeZone",
-  "keywords",
-  "categories",
-  "locale",
-  "replyTo",
-  "organizerCalendarAddress",
-  "participants",
-  "locations",
-  "virtualLocations",
-  "links",
-  "relatedTo",
-];
+const TIME_FIELDS = ['start', 'utcStart', 'duration', 'utcEnd'] as const;
 
 export async function onBeforeUpdateEvent(
-patch: Partial<CalendarEvent>,
-eventId: string,
+  patch: Partial<CalendarEvent>,
+  eventId: string
 ): Promise<Partial<CalendarEvent>> {
+  // Rien de sensible touché (couleur, alertes, statut…) : le patch part tel quel.
+  if (!SENSITIVE_FIELDS.some((f) => f in patch)) return patch;
 
-  const existingEncryptedEvent: CalendarEvent = await host.api.event.get(eventId);
-
-  const accountId = existingEncryptedEvent.accountId || (await getCurrentAccountId()) || "";
+  const existing: CalendarEvent = await host.api.event.get(eventId);
+  const accountId = await resolveAccountId(existing.accountId);
   const keys = await getKeys(accountId);
-  if (!keys) {
-    throw new Error("No encryption keys found for this account.");
-  }
 
-  const hasSensitiveChanges = SENSITIVE_FIELDS.some((field) => field in patch);
-
-  if (!hasSensitiveChanges) {
-    return patch;
-  }
-
+  // 1. Reconstituer l'événement complet : champs serveur + payload déchiffré + patch.
   let currentPayload: Partial<CalendarEvent> = {};
-  if (existingEncryptedEvent.description) {
+  const alreadyEncrypted = isEncryptedEvent(existing);
+  if (alreadyEncrypted) {
     try {
-      const decryptedJson = await decryptString(existingEncryptedEvent.description, keys.dekAes);
-      currentPayload = JSON.parse(decryptedJson);
+      currentPayload = JSON.parse(await decryptString(existing.description, keys.dekAes));
     } catch (error) {
-      throw new Error("Failed to decrypt existing event payload: " + error);
+      // On refuse d'écraser : réécrire avec un payload vide détruirait des données
+      // peut-être récupérables (ex. mauvais secret côté plugin maître).
+      throw new Error('Failed to decrypt the existing event payload, update aborted: ' + error);
     }
   }
+  // Sinon : événement legacy en clair (ou déjà déchiffré par l'hôte) → sa mise à jour le chiffre.
+  const merged: CalendarEvent = { ...existing, ...currentPayload, ...patch };
 
-  const mergedFullEvent: CalendarEvent = {
-    ...existingEncryptedEvent,
-    ...currentPayload,
-    ...patch,
-  };
+  // 2. Rechiffrer tout le payload sensible.
+  const description = await encryptString(JSON.stringify(pickSensitive(merged)), keys.dekAes);
 
-  const updatedSensitivePayload = SENSITIVE_FIELDS.reduce((acc, field) => {
-    acc[field] = mergedFullEvent[field] ?? null;
-    return acc;
-  }, {} as Record<string, any>);
+  // 3. Construire le patch envoyé au serveur : AUCUN champ sensible en clair.
+  const updated: Partial<CalendarEvent> = { ...patch };
+  for (const f of SENSITIVE_FIELDS) delete updated[f];
+  updated.description = description;
 
-  const newEncryptedDescription = await encryptString(
-    JSON.stringify(updatedSensitivePayload),
-    keys.dekAes
-  );
-
-  const timeChanged = "start" in patch || "utcStart" in patch || "duration" in patch || "utcEnd" in patch;
-  let newMonthIndexTitle: string | undefined;
-
-  if (timeChanged) {
-    const coveredMonths = getCoveredMonths(
-      mergedFullEvent.start || mergedFullEvent.utcStart || "1970-01-01T00:00:00Z",
-      mergedFullEvent.duration,
-      mergedFullEvent.utcEnd
-    );
-    const monthHashes = await Promise.all(
-      coveredMonths.map((ym) => generateMonthIndex(ym, keys.dekHmac))
-    );
-    newMonthIndexTitle = monthHashes.join(",");
+  // L'index de mois (dans `title`) ne change que si le temps change.
+  const timeChanged = TIME_FIELDS.some((f) => f in patch);
+  if (timeChanged || !alreadyEncrypted) {
+    updated.title = await computeMonthIndexTitle(merged, keys.dekHmac);
   }
+  if (!alreadyEncrypted) Object.assign(updated, PUBLIC_PLACEHOLDER);
 
-  const updatedPatch: Partial<CalendarEvent> = {
-    ...patch,
-    description: newEncryptedDescription,
-  };
-
-  if (timeChanged && newMonthIndexTitle) {
-    updatedPatch.title = newMonthIndexTitle;
-  }
-
-  for (const field of SENSITIVE_FIELDS) {
-    if (field !== "title" && field !== "description") {
-      delete updatedPatch[field];
-    }
-  }
-
-  return updatedPatch;
+  return updated;
 }

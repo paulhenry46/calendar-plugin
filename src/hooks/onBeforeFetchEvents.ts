@@ -1,80 +1,55 @@
-import { getKeys } from "../crypto/getKey.ts";
-import { CalendarEventFilter, CalendarEventFilterCondition, CalendarEventFilterOperator } from "../types.ts";
-import { getCurrentAccountId } from "../util.ts";
+import host from '@plugin-host';
+import { generateMonthIndex } from '../crypto/encrypt.ts';
+import { CalendarCryptoError, getKeys } from '../crypto/getKey.ts';
+import type { CalendarEventFilter, CalendarEventFilterCondition } from '../types.ts';
+import { getCurrentAccountId, monthsBetween, notifyThrottled } from '../util.ts';
+
+/**
+ * Filtres en clair qui, une fois les données chiffrées, ne peuvent plus être évalués par le
+ * serveur — et qui, envoyés tels quels, FERAIENT FUITER les termes recherchés. On les retire :
+ * la recherche plein texte doit se faire côté client sur les événements déchiffrés.
+ */
+const CLIENT_SIDE_ONLY: (keyof CalendarEventFilterCondition)[] = ['text', 'title', 'description', 'location', 'attendee'];
 
 export async function onBeforeFetchEvents(filter: CalendarEventFilter): Promise<CalendarEventFilter> {
-  const keys = await getKeys(await getCurrentAccountId() || '');
-  if (!keys) {
-    throw new Error("No encryption keys found for this account.");
+  const accountId = await getCurrentAccountId();
+  if (!accountId) return filter;
+
+  try {
+    const keys = await getKeys(accountId);
+    return await editFilter(filter, keys.dekHmac);
+  } catch (e) {
+    // Pas de clé (jamais chiffré) → filtre inchangé pour continuer à voir les événements legacy.
+    if (!(e instanceof CalendarCryptoError && e.code === 'NO_KEYS')) {
+      host.log.error('Cannot rewrite the calendar filter:', e);
+      notifyThrottled(host.i18n.t('calendar.error.locked'));
+    }
+    return filter;
   }
-  return editFilter(filter, keys.dekHmac);
 }
 
 async function editFilter(filter: CalendarEventFilter, hmacKey: CryptoKey): Promise<CalendarEventFilter> {
   if ('operator' in filter) {
-    const updatedConditions = await Promise.all(
-      filter.conditions.map((subFilter) => editFilter(subFilter, hmacKey))
-    );
-    return {
-      ...filter,
-      conditions: updatedConditions,
-    };
+    return { ...filter, conditions: await Promise.all(filter.conditions.map((f) => editFilter(f, hmacKey))) };
   }
 
-  if (filter.after && filter.before) {
-    const months = getMonthsInInterval(filter.after, filter.before);
-    
-    const signedMonths = await Promise.all(
-      months.map((monthStr) => signString(monthStr, hmacKey))
-    );
+  const { after, before, ...rest } = filter;
+  const cleaned: CalendarEventFilterCondition = { ...rest };
+  for (const f of CLIENT_SIDE_ONLY) delete cleaned[f];
 
-    const { after, before, title, ...rest } = filter;
+  if (!after && !before) return cleaned;
 
-    const monthConditions: CalendarEventFilterCondition[] = signedMonths.map((signedMonth) => ({
-      ...rest,
-      title: signedMonth,
-    }));
-
-    if (monthConditions.length === 1) {
-      return monthConditions[0];
-    }
-
-    return {
-      operator: 'OR',
-      conditions: monthConditions,
-    };
+  if (!after || !before) {
+    // Une borne seule n'a aucun sens contre des dates factices : on retire les deux.
+    host.log.warn('Open-ended date filter cannot be evaluated server-side; returning all events.');
+    return cleaned;
   }
 
-  return filter;
-}
+  const months = monthsBetween(new Date(after), new Date(before));
+  if (months.length === 0) return cleaned;
 
-function getMonthsInInterval(afterStr: string, beforeStr: string): string[] {
-  const startDate = new Date(afterStr);
-  const endDate = new Date(beforeStr);
-  const months: string[] = [];
-
-  const current = new Date(startDate.getFullYear(), startDate.getMonth(), 1);
-  const last = new Date(endDate.getFullYear(), endDate.getMonth(), 1);
-
-  while (current <= last) {
-    const year = current.getFullYear();
-    const month = String(current.getMonth() + 1).padStart(2, '0');
-    months.push(`${year}-${month}`);
-    
-    // Passer au mois suivant
-    current.setMonth(current.getMonth() + 1);
-  }
-
-  return months;
-}
-
-async function signString(data: string, hmacKey: CryptoKey): Promise<string> {
-  const encoder = new TextEncoder();
-  const encodedData = encoder.encode(data);
-  const signatureBuffer = await crypto.subtle.sign("HMAC", hmacKey, encodedData);
-  
-  // Convertir ArrayBuffer en Hex String
-  return Array.from(new Uint8Array(signatureBuffer))
-    .map((b) => b.toString(16).padStart(2, '0'))
-    .join('');
+  const monthConditions: CalendarEventFilterCondition[] = await Promise.all(
+    months.map(async (m) => ({ ...cleaned, title: await generateMonthIndex(m, hmacKey) }))
+  );
+  return monthConditions.length === 1 ? monthConditions[0] : { operator: 'OR', conditions: monthConditions };
 }

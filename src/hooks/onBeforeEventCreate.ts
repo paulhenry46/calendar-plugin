@@ -1,72 +1,25 @@
-import { encryptString, generateMonthIndex } from "../crypto/encrypt.ts";
-import { getKeys } from "../crypto/getKey.ts";
-import { CalendarEvent } from "../types.ts";
-import { getCoveredMonths, getCurrentAccountId } from "../util.ts";
+import { encryptString } from '../crypto/encrypt.ts';
+import { getKeys } from '../crypto/getKey.ts';
+import type { CalendarEvent } from '../types.ts';
+import { resolveAccountId } from '../util.ts';
+import { computeMonthIndexTitle, pickSensitive, PUBLIC_PLACEHOLDER } from './payload.ts';
 
 export async function encryptCalendarEvent(
   event: CalendarEvent,
   aesKey: CryptoKey,
   hmacIndexKey: CryptoKey
 ): Promise<CalendarEvent> {
-  const coveredMonths = getCoveredMonths(event.start || event.utcStart || '1970-01-01T00:00:00Z', event.duration, event.utcEnd);
-
-  const monthHashes = await Promise.all(
-    coveredMonths.map(ym => generateMonthIndex(ym, hmacIndexKey))
-  );
-  const monthIndexTitle = monthHashes.join(',');
-
-  const sensitivePayload = {
-    title: event.title,
-    description: event.description,
-    utcStart: event.utcStart,
-    utcEnd: event.utcEnd,
-    start: event.start,
-    duration: event.duration,
-    timeZone: event.timeZone,
-    keywords: event.keywords,
-    categories: event.categories,
-    locale: event.locale,
-    replyTo: event.replyTo,
-    organizerCalendarAddress: event.organizerCalendarAddress,
-    participants: event.participants,
-    locations: event.locations,
-    virtualLocations: event.virtualLocations,
-    links: event.links,
-    relatedTo: event.relatedTo,
-  };
-
-  const encryptedDescription = await encryptString(
-    JSON.stringify(sensitivePayload),
-    aesKey
-  );
-
-  return {
-    ...event,
-    title: monthIndexTitle,
-    description: encryptedDescription,
-    utcStart: null,
-    utcEnd: null,
-    start: '1970-01-01T00:00:00Z',
-    duration: 'PT1H',
-    timeZone: 'UTC',
-    keywords: null,
-    categories: null,
-    locale: null,
-    replyTo: null,
-    organizerCalendarAddress: null,
-    participants: null,
-    locations: null,
-    virtualLocations: null,
-    links: null,
-    relatedTo: null,
-  };
+  const title = await computeMonthIndexTitle(event, hmacIndexKey);
+  const description = await encryptString(JSON.stringify(pickSensitive(event)), aesKey);
+  return { ...event, ...PUBLIC_PLACEHOLDER, title, description };
 }
 
+/**
+ * Chemin d'écriture : on échoue en mode fermé (exception) plutôt que de laisser partir
+ * un événement en clair. C'est ici que les clés peuvent être créées au premier usage.
+ */
 export async function onBeforeEventCreate(event: CalendarEvent): Promise<CalendarEvent> {
-
-  const keys = await getKeys(event.accountId ? event.accountId : (await getCurrentAccountId() || ''));
-  if (!keys) {
-    throw new Error("No encryption keys found for this account.");
-  }
+  const accountId = await resolveAccountId(event.accountId);
+  const keys = await getKeys(accountId, { createIfMissing: true });
   return encryptCalendarEvent(event, keys.dekAes, keys.dekHmac);
 }
