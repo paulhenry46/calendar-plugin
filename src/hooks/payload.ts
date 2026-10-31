@@ -25,9 +25,9 @@ export type SensitiveField = (typeof SENSITIVE_FIELDS)[number];
 
 /** Valeurs "neutres" envoyées en clair au serveur à la place des vraies. */
 export const PUBLIC_PLACEHOLDER = {
+  title: 'Encrypted',
   utcStart: null,
   utcEnd: null,
-  start: '1970-01-01T00:00:00', // LocalDateTime JSCalendar : pas de "Z"
   duration: 'PT1H',
   timeZone: 'UTC',
   keywords: null,
