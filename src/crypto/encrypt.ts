@@ -41,9 +41,3 @@ export async function decryptString(encryptedBase64: string, key: CryptoKey): Pr
   const decrypted = await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, key, data);
   return new TextDecoder().decode(decrypted);
 }
-
-
-export async function generateMonthIndex(yearMonth: string, hmacKey: CryptoKey): Promise<string> {
-  const signature = await crypto.subtle.sign('HMAC', hmacKey, new TextEncoder().encode(yearMonth));
-  return bufferToHex(signature);
-}

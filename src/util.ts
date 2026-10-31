@@ -3,32 +3,6 @@ import host from '@plugin-host';
 export const MAX_MONTHS = 240;
 const DAY_MS = 86_400_000;
 
-export interface Identity {
-  id: string;
-  name: string;
-  email: string;
-  replyTo?: any[];
-  bcc?: any[];
-  textSignature?: string;
-  htmlSignature?: string;
-  mayDelete: boolean;
-  localAccountId?: string;
-  accountName?: string;
-}
-
-export interface AccountEntry {
-  id: string;/** Unique key: `${username}@${serverHostname}` */
-  label: string;
-  serverUrl: string;
-  username: string;
-  displayName: string;
-  email: string;
-  avatarColor: string;
-  isConnected: boolean;
-  isDefault: boolean;
-  isActive: boolean;
-}
-
 export async function getCurrentAccountId(): Promise<string | undefined> {
   const accounts = await host.user.getAccounts();
   const current = accounts.find((a) => a.isActive);
@@ -80,7 +54,6 @@ export function monthsBetween(from: Date, to: Date): string[] {
     months.push(`${current.getUTCFullYear()}-${String(current.getUTCMonth() + 1).padStart(2, '0')}`);
     current.setUTCMonth(current.getUTCMonth() + 1);
   }
-
   return months;
 }
 
@@ -99,6 +72,7 @@ export function parseIsoDurationToMs(duration: string): number {
   return ms || 3_600_000;
 }
 
+/** Évite de spammer l'utilisateur : un même message au plus une fois par `everyMs`. */
 const lastNotified = new Map<string, number>();
 export function notifyThrottled(message: string, everyMs = 15_000): void {
   const now = Date.now();

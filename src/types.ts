@@ -165,7 +165,7 @@ export interface CalendarRelation {
 }
 
 
-export interface CalendarEventFilterCondition {
+export interface CalendarEventFilter {
   inCalendars?: string[];
   after?: string;
   before?: string;
@@ -179,13 +179,6 @@ export interface CalendarEventFilterCondition {
   uid?: string;
   types?: string[];
 }
-export interface CalendarEventFilterOperator {
-  operator: 'AND' | 'OR' | 'NOT';
-  conditions: CalendarEventFilter[];
-}
-
-export type CalendarEventFilter = CalendarEventFilterCondition | CalendarEventFilterOperator;
-
 //-----------Crypto
 
 export interface SessionKeysEntry {

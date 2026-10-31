@@ -3,12 +3,6 @@ import type { SessionKeysEntry } from '../types.ts';
 const CHANNEL_NAME = 'calendar-session-bus';
 const REQUEST_TIMEOUT_MS = 300;
 
-/**
- * Clés déverrouillées de la session, en mémoire uniquement (jamais persistées).
- * Indexées par `SessionKeysEntry.id` (= accountId).
- * Les CryptoKey non extractibles sont clonables par structured clone : on peut donc les
- * partager entre onglets via BroadcastChannel sans jamais exposer le matériel brut.
- */
 let _sessionKeys: Record<string, SessionKeysEntry> = {};
 
 type SessionMessage =

@@ -13,5 +13,5 @@ export async function onBeforeImportEvent(params: {
   const accountId = await resolveAccountId(params.accountId);
   const keys = await getKeys(accountId, { createIfMissing: true });
 
-  return Promise.all(partialEvents.map((event) => encryptCalendarEvent(event, keys.dekAes, keys.dekHmac)));
+  return Promise.all(partialEvents.map((event) => encryptCalendarEvent(event, keys.dekAes)));
 }

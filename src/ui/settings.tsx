@@ -10,7 +10,8 @@ import { btn, card } from './shared.ts';
 type Status =
   | 'loading'
   | 'no_account'
-  | 'master_unavailable' // maître absent ou verrouillé
+  | 'master_unavailable' // maître absent / pas de clé par défaut pour ce compte
+  | 'master_locked' // maître présent, clé par défaut verrouillée
   | 'no_keys' // maître OK, aucune clé calendrier pour ce compte
   | 'locked' // clés présentes chez le maître, pas encore chargées en session
   | 'unlocked';
@@ -29,7 +30,8 @@ export function SettingsSection() {
     if (isUnlockedLocally(id)) return setStatus('unlocked');
 
     const response = await getDataFromMaster(id);
-    if (!response) return setStatus('master_unavailable');
+    if (response.state === 'unavailable') return setStatus('master_unavailable');
+    if (response.state === 'locked') return setStatus('master_locked');
     setStatus(response.data ? 'locked' : 'no_keys');
   }, []);
 
@@ -77,7 +79,7 @@ export function SettingsSection() {
       <p style={{ margin: 0 }}>{t(`calendar.status.${status}`)}</p>
 
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-        {status === 'master_unavailable' && (
+        {(status === 'master_unavailable' || status === 'master_locked') && (
           <button style={btn} disabled={busy} onClick={() => void refresh()}>
             {t('calendar.action.retry')}
           </button>

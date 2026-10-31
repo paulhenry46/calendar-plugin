@@ -1,62 +1,99 @@
 import type { LocalEncryptedEnvelope } from './getKey.ts';
 
 /**
- * Protocole avec le plugin maître (OpenPGP), via BroadcastChannel :
- *   → { type: 'REQUEST_CUSTOM_SECRET', requestId, salt, accountId, data? }
- *   ← { type: 'RESPONSE_CUSTOM_SECRET', requestId, secret, data?, ok? }
- * Sans `data`, le maître renvoie le secret dérivé pour (salt, accountId) et l'enveloppe stockée
- * (undefined si aucune). Avec `data`, il stocke l'enveloppe et répond `ok`.
- * Le maître ne répond pas s'il est verrouillé / absent → timeout.
+ * Protocole avec le plugin maître (OpenPGP), canal 'pgp-session-bus' :
+ *
+ *   LIRE      → { type: 'REQUEST_CUSTOM_SECRET', requestId, salt, accountId }
+ *             ← { type: 'RESPONSE_CUSTOM_SECRET', requestId, secret, data }
+ *       - maître déverrouillé : secret = string, data = enveloppe ou undefined
+ *       - maître verrouillé   : secret = null (réponse immédiate)
+ *       - aucune clé par défaut pour ce compte : le maître ne répond PAS (timeout)
+ *
+ *   ÉCRIRE    → { type: 'REQUEST_ADD_CUSTOM_SECRET', requestId, salt, accountId, data }
+ *             ← { type: 'RESPONSE_ADD_CUSTOM_SECRET', requestId, ok }
+ *
+ * Plusieurs onglets = plusieurs écouteurs maîtres qui répondent tous : on ne se fie donc
+ * jamais à la première réponse "négative".
  */
 const CHANNEL_NAME = 'pgp-session-bus';
 const PLUGIN_STORAGE_SLOT_NAME = 'pgp-calendar-plugin';
 const MASTER_TIMEOUT_MS = 1500;
+/** Après une réponse négative, on laisse ce délai aux autres onglets pour répondre mieux. */
+const GRACE_AFTER_NEGATIVE_MS = 400;
 
-function requestMaster<T>(
-  accountId: string,
-  payload: Record<string, unknown>,
-  pick: (data: any) => T,
-  onTimeout: T
-): Promise<T> {
+export type MasterReply =
+  | { state: 'ok'; secret: string; data: LocalEncryptedEnvelope | undefined }
+  | { state: 'locked' } // le maître répond mais sa clé par défaut n'est pas déverrouillée
+  | { state: 'unavailable' }; // pas de réponse : absent, ou pas de clé par défaut pour ce compte
+
+export function getDataFromMaster(accountId: string): Promise<MasterReply> {
   return new Promise((resolve) => {
     const channel = new BroadcastChannel(CHANNEL_NAME);
     const requestId = crypto.randomUUID();
+    let sawLocked = false;
+    let timer: ReturnType<typeof setTimeout>;
 
-    const timeout = setTimeout(() => {
+    const finish = (reply: MasterReply) => {
+      clearTimeout(timer);
       channel.close();
-      resolve(onTimeout);
-    }, MASTER_TIMEOUT_MS);
+      resolve(reply);
+    };
+    const finishNegative = () => finish(sawLocked ? { state: 'locked' } : { state: 'unavailable' });
+
+    timer = setTimeout(finishNegative, MASTER_TIMEOUT_MS);
 
     channel.onmessage = (event: MessageEvent<any>) => {
-      if (event.data?.type === 'RESPONSE_CUSTOM_SECRET' && event.data.requestId === requestId) {
-        clearTimeout(timeout);
-        channel.close();
-        resolve(pick(event.data));
+      const d = event.data;
+      if (d?.type !== 'RESPONSE_CUSTOM_SECRET' || d.requestId !== requestId) return;
+
+      if (typeof d.secret === 'string' && d.secret.length > 0) {
+        finish({ state: 'ok', secret: d.secret, data: d.data ?? undefined });
+      } else if (!sawLocked) {
+        // secret null = onglet maître verrouillé. Un autre onglet peut être déverrouillé.
+        sawLocked = true;
+        clearTimeout(timer);
+        timer = setTimeout(finishNegative, GRACE_AFTER_NEGATIVE_MS);
+      }
+    };
+
+    channel.postMessage({ type: 'REQUEST_CUSTOM_SECRET', requestId, salt: PLUGIN_STORAGE_SLOT_NAME, accountId });
+  });
+}
+
+/**
+ * Demande au maître de stocker l'enveloppe. true uniquement sur `ok: true` explicite.
+ * Un `ok: false` peut venir d'un onglet qui a perdu une course : l'appelant doit relire
+ * (getDataFromMaster) pour savoir ce qui est réellement stocké.
+ */
+export function putKeysToMaster(accountId: string, envelope: LocalEncryptedEnvelope): Promise<boolean> {
+  return new Promise((resolve) => {
+    const channel = new BroadcastChannel(CHANNEL_NAME);
+    const requestId = crypto.randomUUID();
+    let timer: ReturnType<typeof setTimeout>;
+
+    const finish = (ok: boolean) => {
+      clearTimeout(timer);
+      channel.close();
+      resolve(ok);
+    };
+    timer = setTimeout(() => finish(false), MASTER_TIMEOUT_MS);
+
+    channel.onmessage = (event: MessageEvent<any>) => {
+      const d = event.data;
+      if (d?.type !== 'RESPONSE_ADD_CUSTOM_SECRET' || d.requestId !== requestId) return;
+      if (d.ok === true) finish(true);
+      else {
+        clearTimeout(timer);
+        timer = setTimeout(() => finish(false), GRACE_AFTER_NEGATIVE_MS);
       }
     };
 
     channel.postMessage({
-      type: 'REQUEST_CUSTOM_SECRET',
+      type: 'REQUEST_ADD_CUSTOM_SECRET',
       requestId,
       salt: PLUGIN_STORAGE_SLOT_NAME,
       accountId,
-      ...payload,
+      data: envelope,
     });
   });
-}
-
-export function getDataFromMaster(
-  accountId: string
-): Promise<{ data: LocalEncryptedEnvelope | undefined; secret: string } | undefined> {
-  return requestMaster(
-    accountId,
-    {},
-    (d) => ({ data: d.data as LocalEncryptedEnvelope | undefined, secret: d.secret as string }),
-    undefined
-  );
-}
-
-/** Demande au maître de stocker l'enveloppe. Résout true uniquement sur confirmation explicite. */
-export function putKeysToMaster(accountId: string, envelope: LocalEncryptedEnvelope): Promise<boolean> {
-  return requestMaster(accountId, { data: envelope }, (d) => d.ok === true, false);
 }

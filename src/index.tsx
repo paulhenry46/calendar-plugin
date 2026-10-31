@@ -1,10 +1,3 @@
-/**
- * Calendar True End-to-End — plugin privilégié (même origine).
- *
- * Chiffre les événements de calendrier côté navigateur. Les clés (AES-GCM + HMAC) sont
- * générées localement, emballées avec un secret fourni par le plugin maître (OpenPGP) et
- * stockées chez lui ; elles ne vivent ici qu'en mémoire, sous forme de CryptoKey non extractibles.
- */
 import { SettingsSection } from './ui/settings.tsx';
 import { broadcastLockKey, initBackgroundSessionListener } from './crypto/broadcastChannel.ts';
 import { onBeforeEventCreate } from './hooks/onBeforeEventCreate.ts';
@@ -22,15 +15,12 @@ export function isCapable(): boolean {
   return typeof crypto !== 'undefined' && !!crypto.subtle && typeof BroadcastChannel !== 'undefined';
 }
 
-// ⚠ Les clés de ce tableau sont les NOMS DE HOOKS attendus par l'hôte. Ils sont déduits de vos
-// noms de fonctions ; à vérifier dans la doc du système de plugins de l'hôte.
 export const hooks = {
   onBeforeEventCreate,
   onBeforeEventUpdate: onBeforeUpdateEvent,
   onBeforeEventsImport: onBeforeImportEvent,
   onBeforeFetchEvents,
   onAfterFetchEvents: onAfterFetchEvent,
-  // Déconnexion : on ne laisse aucune clé en mémoire (ici et dans les autres onglets).
   async onAfterLogout() {
     broadcastLockKey();
   },

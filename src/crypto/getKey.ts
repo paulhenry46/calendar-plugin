@@ -17,7 +17,8 @@ export interface CalendarKeys {
 }
 
 export type CalendarCryptoErrorCode =
-  | 'MASTER_UNAVAILABLE' // plugin maître absent, verrouillé ou trop lent
+  | 'MASTER_UNAVAILABLE' // plugin maître absent, ou sans clé par défaut pour ce compte
+  | 'MASTER_LOCKED' // plugin maître présent mais clé par défaut verrouillée
   | 'NO_KEYS' // le maître répond mais aucune clé n'existe pour ce compte
   | 'STORE_FAILED' // le maître n'a pas confirmé le stockage des nouvelles clés
   | 'UNWRAP_FAILED'; // enveloppe illisible (secret changé / données corrompues)
@@ -132,11 +133,14 @@ async function loadKeys(accountId: string, opts: GetKeysOptions): Promise<Calend
   }
 
   const response = await getDataFromMaster(accountId);
-  if (response === undefined) {
+  if (response.state === 'unavailable') {
     throw new CalendarCryptoError(
       'MASTER_UNAVAILABLE',
-      'Cannot reach the master plugin. Make sure it is installed and that your key is unlocked.'
+      'Cannot reach the master plugin. Make sure it is installed and that a default key is set for this account.'
     );
+  }
+  if (response.state === 'locked') {
+    throw new CalendarCryptoError('MASTER_LOCKED', 'The master plugin is locked: unlock your default key.');
   }
 
   let keys: CalendarKeys;
@@ -145,12 +149,17 @@ async function loadKeys(accountId: string, opts: GetKeysOptions): Promise<Calend
       throw new CalendarCryptoError('NO_KEYS', 'No calendar keys exist for this account yet.');
     }
     const envelope = await generateAndWrapCalendarKeys(response.secret);
-    // Si le stockage n'est pas confirmé, on N'UTILISE PAS ces clés : tout ce qu'on chiffrerait
-    // avec serait perdu à la fermeture de l'onglet.
-    if (!(await putKeysToMaster(accountId, envelope))) {
+    await putKeysToMaster(accountId, envelope);
+
+    // On ne se fie pas au `ok` : on RELIT ce qui est réellement stocké.
+    //  - notre enveloppe → stockage confirmé ;
+    //  - une autre enveloppe → un autre onglet a gagné la course : on adopte la sienne ;
+    //  - rien → échec : on n'utilise PAS ces clés (tout ce qu'on chiffrerait serait perdu).
+    const check = await getDataFromMaster(accountId);
+    if (check.state !== 'ok' || !check.data) {
       throw new CalendarCryptoError('STORE_FAILED', 'The master plugin did not confirm storing the new calendar keys.');
     }
-    keys = await unlockCalendarKeys(response.secret, envelope);
+    keys = await unlockCalendarKeys(check.secret, check.data);
   } else {
     keys = await unlockCalendarKeys(response.secret, response.data);
   }
