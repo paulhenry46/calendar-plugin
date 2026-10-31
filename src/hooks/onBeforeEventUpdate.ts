@@ -7,10 +7,9 @@ import {
   isEncryptedEvent,
   pickSensitive,
   PUBLIC_PLACEHOLDER,
+  publicStart,
   SENSITIVE_FIELDS,
 } from './payload.ts';
-
-const TIME_FIELDS = ['start', 'utcStart', 'duration', 'utcEnd'] as const;
 
 export async function onBeforeUpdateEvent(
   patch: Partial<CalendarEvent>,
@@ -20,10 +19,13 @@ export async function onBeforeUpdateEvent(
 
   const existing: CalendarEvent = await host.api.event.get(eventId);
   const accountId = await resolveAccountId(existing.accountId);
-  const keys = await getKeys(accountId);
+  const alreadyEncrypted = isEncryptedEvent(existing);
+
+  // Editing a legacy (plain) event is a write path: allow creating the keys, like on create.
+  // For an already encrypted event, never generate keys: they must already exist.
+  const keys = await getKeys(accountId, { createIfMissing: !alreadyEncrypted });
 
   let currentPayload: Partial<CalendarEvent> = {};
-  const alreadyEncrypted = isEncryptedEvent(existing);
   if (alreadyEncrypted) {
     try {
       currentPayload = JSON.parse(await decryptString(existing.description, keys.dekAes));
@@ -31,38 +33,17 @@ export async function onBeforeUpdateEvent(
       throw new Error('Failed to decrypt the existing event payload, update aborted: ' + error);
     }
   }
+
+  // Real values only: the payload is never truncated or altered.
   const merged: CalendarEvent = { ...existing, ...currentPayload, ...patch };
-
-  const timeChanged = TIME_FIELDS.some((f) => f in patch);
-  if (timeChanged && patch.start && existing.start) {
-    const oldDate = new Date(existing.start);
-    const newDate = new Date(patch.start);
-
-    if (oldDate.getFullYear() !== newDate.getFullYear() || oldDate.getMonth() !== newDate.getMonth()) {
-      const adjustedDate = new Date(Date.UTC(newDate.getFullYear(), newDate.getMonth(), 1, 0, 0, 0, 0));
-      patch.start = adjustedDate.toISOString();
-      merged.start = patch.start;
-    }
-  }
-
-  if (timeChanged && patch.utcStart && existing.utcStart) {
-    const oldDate = new Date(existing.utcStart);
-    const newDate = new Date(patch.utcStart);
-
-    if (oldDate.getFullYear() !== newDate.getFullYear() || oldDate.getMonth() !== newDate.getMonth()) {
-      const adjustedDate = new Date(Date.UTC(newDate.getFullYear(), newDate.getMonth(), 1, 0, 0, 0, 0));
-      patch.utcStart = adjustedDate.toISOString();
-      merged.utcStart = patch.utcStart;
-    }
-  }
-
   const description = await encryptString(JSON.stringify(pickSensitive(merged)), keys.dekAes);
 
+  // Public copy: sensitive fields removed, placeholders applied on every update (idempotent),
+  // and the public start always follows the merged start, so moving an event to another
+  // month moves it on the server too.
   const updated: Partial<CalendarEvent> = { ...patch };
   for (const f of SENSITIVE_FIELDS) delete updated[f];
-  updated.description = description;
-
-  if (!alreadyEncrypted) Object.assign(updated, PUBLIC_PLACEHOLDER);
+  Object.assign(updated, PUBLIC_PLACEHOLDER, { start: publicStart(merged.start), description });
 
   return updated;
 }

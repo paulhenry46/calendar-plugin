@@ -2,29 +2,16 @@ import { encryptString } from '../crypto/encrypt.ts';
 import { getKeys } from '../crypto/getKey.ts';
 import type { CalendarEvent } from '../types.ts';
 import { resolveAccountId } from '../util.ts';
-import { pickSensitive, PUBLIC_PLACEHOLDER } from './payload.ts';
+import { pickSensitive, PUBLIC_PLACEHOLDER, publicStart } from './payload.ts';
 
 export async function encryptCalendarEvent(
   event: CalendarEvent,
   aesKey: CryptoKey
 ): Promise<CalendarEvent> {
-  const modifiedEvent = { ...event };
-
-  if (modifiedEvent.start) {
-    const date = new Date(modifiedEvent.start);
-    const adjustedDate = new Date(Date.UTC(date.getFullYear(), date.getMonth(), 1, 0, 0, 0, 0));
-    modifiedEvent.start = adjustedDate.toISOString();
-  }
-
-  if (modifiedEvent.utcStart) {
-    const date = new Date(modifiedEvent.utcStart);
-    const adjustedDate = new Date(Date.UTC(date.getFullYear(), date.getMonth(), 1, 0, 0, 0, 0));
-    modifiedEvent.utcStart = adjustedDate.toISOString();
-  }
-
-  const title = 'Encrypted';
+  // The payload is built from the untouched event: real dates are encrypted as-is.
   const description = await encryptString(JSON.stringify(pickSensitive(event)), aesKey);
-  return { ...modifiedEvent, ...PUBLIC_PLACEHOLDER, title, description };
+  // Only the public copy gets the month-truncated start.
+  return { ...event, ...PUBLIC_PLACEHOLDER, start: publicStart(event.start), description };
 }
 
 export async function onBeforeEventCreate(event: CalendarEvent): Promise<CalendarEvent> {

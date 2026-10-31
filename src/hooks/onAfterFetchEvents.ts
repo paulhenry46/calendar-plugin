@@ -1,9 +1,14 @@
+import { isUnlockedLocally } from '../crypto/broadcastChannel.ts';
 import { decryptString } from '../crypto/encrypt.ts';
 import { CalendarCryptoError, getKeys, type CalendarKeys } from '../crypto/getKey.ts';
 import type { CalendarEvent } from '../types.ts';
 import { getCurrentAccountId, notifyThrottled } from '../util.ts';
 import host from '@plugin-host';
 import { isEncryptedEvent, SENSITIVE_FIELDS } from './payload.ts';
+
+/** After a failed key load, do not retry for this long (each attempt can block for ~2 s). */
+const FAILURE_TTL_MS = 5_000;
+const lastFailureAt = new Map<string, number>();
 
 export async function decryptCalendarEvent(
   encryptedEvent: CalendarEvent,
@@ -13,7 +18,7 @@ export async function decryptCalendarEvent(
 
   const payload = JSON.parse(await decryptString(encryptedEvent.description, aesKey));
   const restored: Partial<CalendarEvent> = {};
-  // Liste blanche : le payload ne peut jamais écraser id, accountId, etc.
+  // Whitelist: the payload can never overwrite id, accountId, etc.
   for (const field of SENSITIVE_FIELDS) {
     if (field in payload) (restored as Record<string, unknown>)[field] = payload[field];
   }
@@ -21,10 +26,11 @@ export async function decryptCalendarEvent(
 }
 
 /**
- * Chemin de lecture : on échoue en mode ouvert (on rend les événements tels quels) pour ne
- * pas casser l'agenda quand le maître est verrouillé ou qu'un événement n'est pas chiffré
- * (créé avant l'installation du plugin). Les événements chiffrés non déchiffrés restent
- * simplement invisibles (début en 1970).
+ * Read path: fail open (return events as-is) so the calendar does not break when the master
+ * plugin is locked or when an event is not encrypted (created before the plugin was
+ * installed). An encrypted event that cannot be decrypted is returned with its public
+ * placeholders (title "Encrypted", 1st of its month).
+ *
  */
 export async function onAfterFetchEvent(events: CalendarEvent[]): Promise<CalendarEvent[]> {
   if (!events || events.length === 0) return [];
@@ -35,12 +41,17 @@ export async function onAfterFetchEvent(events: CalendarEvent[]): Promise<Calend
   const keysFor = (accountId: string) => {
     let p = keysByAccount.get(accountId);
     if (!p) {
-      p = getKeys(accountId).catch((e) => {
-        if (e instanceof CalendarCryptoError && e.code === 'NO_KEYS') return null; // rien n'a jamais été chiffré
-        host.log.error('Calendar decryption unavailable:', e);
-        notifyThrottled(host.i18n.t('calendar.error.locked'));
-        return null;
-      });
+      const recentlyFailed =
+        !isUnlockedLocally(accountId) && Date.now() - (lastFailureAt.get(accountId) ?? 0) < FAILURE_TTL_MS;
+      p = recentlyFailed
+        ? Promise.resolve(null)
+        : getKeys(accountId).catch((e) => {
+            lastFailureAt.set(accountId, Date.now());
+            if (e instanceof CalendarCryptoError && e.code === 'NO_KEYS') return null; // nothing was ever encrypted
+            host.log.error('Calendar decryption unavailable:', e);
+            notifyThrottled(host.i18n.t(`calendar.error.${e instanceof CalendarCryptoError ? e.code : 'UNKNOWN'}`));
+            return null;
+          });
       keysByAccount.set(accountId, p);
     }
     return p;
@@ -48,7 +59,7 @@ export async function onAfterFetchEvent(events: CalendarEvent[]): Promise<Calend
 
   return Promise.all(
     events.map(async (event) => {
-      if (!isEncryptedEvent(event)) return event; // legacy / déjà en clair
+      if (!isEncryptedEvent(event)) return event; // legacy / already plain
       const accountId = event.accountId || currentAccountId;
       if (!accountId) return event;
       const keys = await keysFor(accountId);
@@ -56,7 +67,7 @@ export async function onAfterFetchEvent(events: CalendarEvent[]): Promise<Calend
       try {
         return await decryptCalendarEvent(event, keys.dekAes);
       } catch (e) {
-        // Mauvaise clé ou donnée altérée (GCM authentifie) : on ne rend rien d'inventé.
+        // Wrong key or tampered data (GCM authenticates): never render anything invented.
         host.log.warn(`Could not decrypt event ${event.id}:`, e);
         return event;
       }

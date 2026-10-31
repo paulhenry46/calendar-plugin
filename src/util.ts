@@ -19,44 +19,6 @@ export async function resolveAccountId(accountId?: string | null): Promise<strin
   return id;
 }
 
-
-export function getCoveredMonths(
-  startIso: string,
-  durationIso?: string | null,
-  endIso?: string | null,
-  padMs = 0
-): string[] {
-  const startDate = new Date(startIso);
-  if (Number.isNaN(startDate.getTime())) return [];
-
-  let endDate: Date;
-  if (endIso && !Number.isNaN(new Date(endIso).getTime())) {
-    endDate = new Date(endIso);
-  } else if (durationIso) {
-    endDate = new Date(startDate.getTime() + parseIsoDurationToMs(durationIso));
-  } else {
-    endDate = new Date(startDate);
-  }
-
-  return monthsBetween(new Date(startDate.getTime() - padMs), new Date(endDate.getTime() + padMs));
-}
-
-export function monthsBetween(from: Date, to: Date): string[] {
-  const months: string[] = [];
-  const current = new Date(Date.UTC(from.getUTCFullYear(), from.getUTCMonth(), 1));
-  const last = new Date(Date.UTC(to.getUTCFullYear(), to.getUTCMonth(), 1));
-
-  while (current <= last) {
-    if (months.length >= MAX_MONTHS) {
-      host.log.warn(`Month range truncated to ${MAX_MONTHS} months.`);
-      break;
-    }
-    months.push(`${current.getUTCFullYear()}-${String(current.getUTCMonth() + 1).padStart(2, '0')}`);
-    current.setUTCMonth(current.getUTCMonth() + 1);
-  }
-  return months;
-}
-
 /** Marge d'un jour utilisée à l'indexation (décalages de fuseau). */
 export const INDEX_PAD_MS = DAY_MS;
 
