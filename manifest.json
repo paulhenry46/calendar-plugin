@@ -8,12 +8,8 @@
   "tier": "privileged",
   "permissions": [
     "crypto:full",
-    "email:blob-read",
-    "email:blob-write",
-    "email:raw-send",
-    "email:render-takeover",
-    "email:read",
-    "email:send",
+    "calendar:read",
+    "calendar:write",
     "ui:composer-toolbar",
     "ui:composer-sidebar",
     "ui:email-banner",
@@ -36,100 +32,10 @@
   "icon": "media/icon.svg",
   "banner": "media/banner.svg",
   "configSchema": {
-    "forceEncryption": {
-      "type": "boolean",
-      "label": "Force Encryption",
-      "description": "Force users to add/generate a key before they can send an email to a recipient. This is useful for organizations that want to enforce end-to-end encryption.",
-      "default": false
-    },
-    "forceDraftAndAttachmentsEncryption": {
-      "type": "boolean",
-      "label": "Force Encryption of Drafts and Attachments  ",
-      "description": "Force users to encrypt drafts and attachments. This is useful for organizations that want to enforce end-to-end encryption.",
-      "default": false
-    },
-    "blockUntilDefaultKeyIsAvailable": {
-      "type": "boolean",
-      "label": "Block until users' default key is available",
-      "description": "Prevent sending emails until their default key is available. Automatically enable 'Ask for default key on booting'",
-      "default": false
-    },
-    "allowPersistentKeys": {
-      "type": "boolean",
-      "label": "Allow persistent keys",
-      "description": "Allow users to activate the persistent key feature (unlocked keys stored in indexedDB encrypted with a non extractible webCrypto key).",
-      "default": false
-    }
+    
   },
   "settingsSchema": {
-    "autoImportSignerCerts": {
-      "type": "boolean",
-      "label": "Auto-save signer certificates",
-      "description": "When a validly signed message is opened, remember the signer's certificate so you can later send them encrypted mail without importing it manually.",
-      "default": true
-    },
-    "encryptDrafts": {
-      "type": "boolean",
-      "label": "Encrypt drafts and uploaded attachments",
-      "description": "Encrypt drafts and attachments before saving them to the server. This is useful if you want to keep your drafts private, but it may cause issues if you activated the 'Encrypt on append' option in your stalwart account",
-      "default": true
-    },
-    "askForDefaultKeyPassOnActivated": {
-      "type": "select",
-      "label": "Ask for the passphrase when booting the app.",
-      "description": "Ask for the passphrase to unlock your default key when booting the app, for default account or all accounts.",
-      "default": "false",
-      "options": [
-        "false", "default", "all"
-      ]
-    },
-    "alwaysSendPubKey": {
-      "type": "boolean",
-      "label": "Always send public key",
-      "description": "Send your public key along with each encrypted message.",
-      "default": true
-    },
-    "defaultEncrypt": {
-      "type": "boolean",
-      "label": "Default encrypt",
-      "description": "Whether to encrypt messages by default.",
-      "default": true
-    },
-    "defaultSign": {
-      "type": "boolean",
-      "label": "Default sign",
-      "description": "Whether to sign messages by default.",
-      "default": true
-    },
-    "tryToFetchMissingKeys": {
-      "type": "boolean",
-      "label": "Try to fetch missing keys",
-      "description": "Whether to attempt fetching missing public keys from keys.openpgp.org for recipients. The server could know to which adresses you sent mail, so this option could be a privacy concern.",
-      "default": true
-    },
-    "StoreDangerous": {
-      "type": "boolean",
-      "label": "Store dangerous keys",
-      "description": "Whether to store unlocked keys in indexedDB. This is useful if you want to avoid unlocking your key every time you boot the app, but it add more attack surface to your keys.",
-      "default": false
-    },
-    "lockOnLogout": {
-      "type": "boolean",
-      "label": "Lock keys on logout",
-      "description": "Whether to lock all keys when the user logs out. This is used only when StoreDangerous is enabled. This is useful if you want to avoid leaving unlocked keys in memory when the user logs out.",
-      "default": false
-    },
-    "generateKey": {
-      "type": "select",
-      "label": "Which engine to use for key generation",
-      "description": "Which engine to use for key generation. curve25519 is a more modern and secure algorithm than RSA, but it may not be compatible with all email clients, like Protonmail. ed25519Legacy is a legacy version of ed25519 that is compatible with older clients. rsa4096 is a more traditional algorithm that is compatible with all clients, but it is slower than curve25519.",
-      "default": true,
-      "options": [
-        "curve25519",
-        "ed25519Legacy",
-        "rsa4096"
-      ]
-    }
+    
   },
   "locales": {
     "en": {

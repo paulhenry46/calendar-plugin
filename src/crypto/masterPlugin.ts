@@ -47,7 +47,7 @@ export function getDataFromMaster(accountId: string): Promise<MasterReply> {
       if (d?.type !== 'RESPONSE_CUSTOM_SECRET' || d.requestId !== requestId) return;
 
       if (typeof d.secret === 'string' && d.secret.length > 0) {
-        finish({ state: 'ok', secret: d.secret, data: d.data ?? undefined });
+        finish({ state: 'ok', secret: d.secret, data: toEnvelope(d.data) });
       } else if (!sawLocked) {
         // secret null = onglet maître verrouillé. Un autre onglet peut être déverrouillé.
         sawLocked = true;
@@ -96,4 +96,18 @@ export function putKeysToMaster(accountId: string, envelope: LocalEncryptedEnvel
       data: envelope,
     });
   });
+}
+
+/**
+ * The master may return either the envelope itself or its storage record
+ * ({ id, data: envelope, accountId }). Normalize to the envelope.
+ */
+function toEnvelope(raw: unknown): LocalEncryptedEnvelope | undefined {
+  if (raw == null) return undefined;
+  const r = raw as any;
+  if (typeof r.iv === 'string' && typeof r.wrappedKeys === 'string') return r;
+  if (typeof r.data?.iv === 'string' && typeof r.data?.wrappedKeys === 'string') return r.data;
+  // Unknown shape: let the unwrap fail loudly. Returning undefined here would be read as
+  // "no keys yet" and could lead to generating new keys over existing data.
+  return r;
 }
