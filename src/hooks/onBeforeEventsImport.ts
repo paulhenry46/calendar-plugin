@@ -1,12 +1,12 @@
 import { getKeys } from '../crypto/getKey.ts';
 import type { CalendarEvent } from '../types.ts';
 import { resolveAccountId } from '../util.ts';
-import { encryptCalendarEvent } from './onBeforeEventCreate.ts';
+import { encryptCalendarEvent } from './onCreatingEvent.ts';
 
 export async function onBeforeImportEvent(params: {
-  partialEvents: CalendarEvent[];
+  partialEvents: Partial<CalendarEvent>[];
   accountId: string;
-}): Promise<CalendarEvent[]> {
+}): Promise<Partial<CalendarEvent>[]> {
   const { partialEvents } = params;
   if (!partialEvents || partialEvents.length === 0) return [];
 

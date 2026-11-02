@@ -4,7 +4,7 @@ import { CalendarCryptoError, getKeys, type CalendarKeys } from '../crypto/getKe
 import type { CalendarEvent } from '../types.ts';
 import { getCurrentAccountId, notifyThrottled } from '../util.ts';
 import host from '@plugin-host';
-import { isEncryptedEvent, SENSITIVE_FIELDS } from './payload.ts';
+import { isEncryptedEvent, SENSITIVE_FIELDS } from '../util.ts';
 
 /** After a failed key load, do not retry for this long (each attempt can block for ~2 s). */
 const FAILURE_TTL_MS = 5_000;
@@ -32,7 +32,7 @@ export async function decryptCalendarEvent(
  * placeholders (title "Encrypted", 1st of its month).
  *
  */
-export async function onAfterFetchEvent(events: CalendarEvent[]): Promise<CalendarEvent[]> {
+export async function onFetchingEvents(events: CalendarEvent[]): Promise<CalendarEvent[]> {
   if (!events || events.length === 0) return [];
 
   const currentAccountId = await getCurrentAccountId();

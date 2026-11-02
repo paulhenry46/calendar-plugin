@@ -9,15 +9,13 @@ import {
   PUBLIC_PLACEHOLDER,
   publicStart,
   SENSITIVE_FIELDS,
-} from './payload.ts';
+} from '../util.ts';
 
-export async function onBeforeUpdateEvent(
-  patch: Partial<CalendarEvent>,
-  eventId: string
-): Promise<Partial<CalendarEvent>> {
-  if (!SENSITIVE_FIELDS.some((f) => f in patch)) return patch;
+export async function onUpdatingEvent(data: {localUpdates: Partial<CalendarEvent>, serverUpdates: Partial<CalendarEvent>, eventId: string}): Promise<{localUpdates: Partial<CalendarEvent>, serverUpdates: Partial<CalendarEvent>, eventId: string}> {
+  const patch = data.localUpdates;
+  if (!SENSITIVE_FIELDS.some((f) => f in patch)) return { localUpdates: patch, serverUpdates: patch, eventId: data.eventId};
 
-  const existing: CalendarEvent = await host.api.event.get(eventId);
+  const existing: CalendarEvent = await host.api.event.get(data.eventId);
   const accountId = await resolveAccountId(existing.accountId);
   const alreadyEncrypted = isEncryptedEvent(existing);
 
@@ -45,5 +43,5 @@ export async function onBeforeUpdateEvent(
   for (const f of SENSITIVE_FIELDS) delete updated[f];
   Object.assign(updated, PUBLIC_PLACEHOLDER, { start: publicStart(merged.start), description });
 
-  return updated;
+  return { localUpdates: data.localUpdates, serverUpdates: updated, eventId: data.eventId };
 }

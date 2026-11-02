@@ -1,10 +1,10 @@
 import { SettingsSection } from './ui/settings.tsx';
 import { broadcastLockKey, initBackgroundSessionListener } from './crypto/broadcastChannel.ts';
-import { onBeforeEventCreate } from './hooks/onBeforeEventCreate.ts';
-import { onBeforeUpdateEvent } from './hooks/onBeforeEventUpdate.ts';
+import { onCreatingEvent } from './hooks/onCreatingEvent.ts';
+import { onUpdatingEvent } from './hooks/onUpdatingEvent.ts';
 import { onBeforeImportEvent } from './hooks/onBeforeEventsImport.ts';
 import { onBeforeFetchEvents } from './hooks/onBeforeFetchEvents.ts';
-import { onAfterFetchEvent } from './hooks/onAfterFetchEvents.ts';
+import { onFetchingEvents } from './hooks/onFetchingEvents.ts';
 
 export const NOT_PRIVILEGED_MSG =
   'Calendar True End-to-End could not start: it is running in the restricted (untrusted) plugin ' +
@@ -16,11 +16,11 @@ export function isCapable(): boolean {
 }
 
 export const hooks = {
-  onBeforeEventCreate,
-  onBeforeEventUpdate: onBeforeUpdateEvent,
+  onCreatingEvent,
+  onUpdatingEvent,
   onBeforeEventsImport: onBeforeImportEvent,
   onBeforeFetchEvents,
-  onAfterFetchEvents: onAfterFetchEvent,
+  onFetchingEvents,
   async onAfterLogout() {
     broadcastLockKey();
   },

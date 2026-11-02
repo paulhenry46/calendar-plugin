@@ -14,13 +14,6 @@ export const btn = {
   cursor: 'pointer',
 };
 
-export function fmtDate(iso: string | number | Date | null) {
-  try { return iso ? new Date(iso).toLocaleDateString() : 'Never'; } catch { return iso; }
-}
-export function isExpired(iso: string | number | Date | null) {
-  if(!iso) return false;
-  try { return iso ? new Date(iso).getTime() < Date.now() : false; } catch { return false; }
-}
 
 export const selectStyle = {
   height: '2.25rem',

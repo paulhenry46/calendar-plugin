@@ -2,12 +2,12 @@ import { encryptString } from '../crypto/encrypt.ts';
 import { getKeys } from '../crypto/getKey.ts';
 import type { CalendarEvent } from '../types.ts';
 import { resolveAccountId } from '../util.ts';
-import { pickSensitive, PUBLIC_PLACEHOLDER, publicStart } from './payload.ts';
+import { pickSensitive, PUBLIC_PLACEHOLDER, publicStart } from '../util.ts';
 
 export async function encryptCalendarEvent(
-  event: CalendarEvent,
+  event: Partial<CalendarEvent>,
   aesKey: CryptoKey
-): Promise<CalendarEvent> {
+): Promise<Partial<CalendarEvent>> {
   // The payload is built from the untouched event: real dates are encrypted as-is.
   console.log('Encrypting event 23:', event);
   const description = await encryptString(JSON.stringify(pickSensitive(event)), aesKey);
@@ -17,12 +17,13 @@ export async function encryptCalendarEvent(
   return encryptedEvent;
 }
 
-export async function onBeforeEventCreate(event: CalendarEvent): Promise<CalendarEvent> {
-  console.log('onBeforeEventCreate called with event:', event);
-  const accountId = await resolveAccountId(event.accountId);
+export async function onCreatingEvent(data: { localEvent: Partial<CalendarEvent> , serverEvent: Partial<CalendarEvent> }): Promise<{ localEvent: Partial<CalendarEvent> , serverEvent: Partial<CalendarEvent> }> {
+  const { localEvent, serverEvent } = data;
+  console.log('onBeforeEventCreate called with event:', localEvent);
+  const accountId = await resolveAccountId(localEvent.accountId);
   const keys = await getKeys(accountId, { createIfMissing: true });
   console.log('Retrieved keys for account', accountId, keys);
   console.log('Encrypting event with AES key:', keys.dekAes);
-  console.log('Event before encryption:', event);
-  return encryptCalendarEvent(event, keys.dekAes);
+  console.log('Event before encryption:', localEvent);
+  return { localEvent: localEvent , serverEvent: await encryptCalendarEvent(localEvent, keys.dekAes) } ;
 }
