@@ -6,6 +6,7 @@ const DAY_MS = 86_400_000;
 
 export async function getCurrentAccountId(): Promise<string | undefined> {
   const accounts = await host.user.getAccounts();
+  console.log('Retrieved accounts:', accounts);
   const current = accounts.find((a) => a.isActive);
   if (!current) {
     host.log.warn('No active account found.');
@@ -47,6 +48,7 @@ export const SENSITIVE_FIELDS = [
   'start',
   'duration',
   'timeZone',
+  'showWithoutTime',
   'keywords',
   'categories',
   'locale',
@@ -70,7 +72,8 @@ export const PUBLIC_PLACEHOLDER = {
   utcStart: null,
   utcEnd: null,
   duration: 'PT1H',
-  timeZone: 'UTC',
+  timeZone: null,
+  showWithoutTime: false,
   keywords: null,
   categories: null,
   locale: null,
@@ -104,4 +107,13 @@ export function pickSensitive(event: Partial<CalendarEvent>): Record<SensitiveFi
 
 export function isEncryptedEvent(event: Partial<CalendarEvent>): boolean {
   return event.title === 'Encrypted';
+}
+// We use the active accoutns server name to deduce the server name and construt an account ID.
+export async function getServerID(){
+  const accountId = await getCurrentAccountId();
+  if (!accountId) {
+    throw new Error('No account available to select the encryption keys.');
+  }
+
+return  accountId.substring(accountId.lastIndexOf('@') + 1);
 }

@@ -31,11 +31,9 @@ declare module '@plugin-host' {
     user: {
       getAccounts(): Promise<HostAccount[]>;
     };
-    api: {
-      event: {
-        get(eventId: string): Promise<any>;
+      calendar: {
+        getEvent(eventId: string): Promise<any>;
       };
-    };
   }
 
   const host: Host;

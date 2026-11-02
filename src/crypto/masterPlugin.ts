@@ -27,6 +27,7 @@ export type MasterReply =
   | { state: 'unavailable' }; // pas de réponse : absent, ou pas de clé par défaut pour ce compte
 
 export function getDataFromMaster(accountId: string): Promise<MasterReply> {
+  console.log('Requesting keys from master for accountId:', accountId);
   return new Promise((resolve) => {
     const channel = new BroadcastChannel(CHANNEL_NAME);
     const requestId = crypto.randomUUID();

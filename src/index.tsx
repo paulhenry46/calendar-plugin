@@ -18,7 +18,7 @@ export function isCapable(): boolean {
 export const hooks = {
   onCreatingEvent,
   onUpdatingEvent,
-  onBeforeEventsImport: onBeforeImportEvent,
+  //onBeforeEventsImport: onBeforeImportEvent,
   onBeforeFetchEvents,
   onFetchingEvents,
   async onAfterLogout() {

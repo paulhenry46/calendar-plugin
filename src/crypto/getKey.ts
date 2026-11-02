@@ -118,6 +118,7 @@ export interface GetKeysOptions {
  * (un fetch de calendrier peut déclencher des dizaines de hooks en parallèle).
  */
 export function getKeys(accountId: string, opts: GetKeysOptions = {}): Promise<CalendarKeys> {
+  console.log('getKeys called for accountId:', accountId, 'with options:', opts);
   const local = getBackgroundSessionKey(accountId);
   if (local) return Promise.resolve({ dekAes: local.aesKey, dekHmac: local.hmacKey });
 
@@ -131,6 +132,7 @@ export function getKeys(accountId: string, opts: GetKeysOptions = {}): Promise<C
 }
 
 async function loadKeys(accountId: string, opts: GetKeysOptions): Promise<CalendarKeys> {
+  console.log('Loading dans loadkeys keys for accountId:', accountId, 'with options:', opts);
   const fromTab = await fetchKeyFromBackground(accountId);
   if (fromTab) {
     broadcastUnlockKey(fromTab); // met aussi en cache localement

@@ -7,6 +7,6 @@ function monthStartUtc(iso: string, offsetMonths: number): string {
 }
 
 export async function onBeforeFetchEvents(filter: {start: string; end: string}): Promise<{start: string; end: string}> {
-
+  console.log('onBeforeFetchEvents', filter);
   return {start : monthStartUtc(filter.start, -1), end: monthStartUtc(filter.end, 2)};
 }

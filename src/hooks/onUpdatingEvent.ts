@@ -14,8 +14,8 @@ import {
 export async function onUpdatingEvent(data: {localUpdates: Partial<CalendarEvent>, serverUpdates: Partial<CalendarEvent>, eventId: string}): Promise<{localUpdates: Partial<CalendarEvent>, serverUpdates: Partial<CalendarEvent>, eventId: string}> {
   const patch = data.localUpdates;
   if (!SENSITIVE_FIELDS.some((f) => f in patch)) return { localUpdates: patch, serverUpdates: patch, eventId: data.eventId};
-
-  const existing: CalendarEvent = await host.api.event.get(data.eventId);
+  const existing: CalendarEvent = await host.calendar.getEvent(data.eventId);
+  console.log('exisitng', existing);
   const accountId = await resolveAccountId(existing.accountId);
   const alreadyEncrypted = isEncryptedEvent(existing);
 
@@ -41,7 +41,7 @@ export async function onUpdatingEvent(data: {localUpdates: Partial<CalendarEvent
   // month moves it on the server too.
   const updated: Partial<CalendarEvent> = { ...patch };
   for (const f of SENSITIVE_FIELDS) delete updated[f];
-  Object.assign(updated, PUBLIC_PLACEHOLDER, { start: publicStart(merged.start), description });
-
+  Object.assign(updated, { start: publicStart(merged.start), description });
+  console.log('onUpdatingEvent Finished', { localUpdates: data.localUpdates, serverUpdates: updated, eventId: data.eventId });
   return { localUpdates: data.localUpdates, serverUpdates: updated, eventId: data.eventId };
 }

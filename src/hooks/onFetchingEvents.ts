@@ -2,7 +2,7 @@ import { isUnlockedLocally } from '../crypto/broadcastChannel.ts';
 import { decryptString } from '../crypto/encrypt.ts';
 import { CalendarCryptoError, getKeys, type CalendarKeys } from '../crypto/getKey.ts';
 import type { CalendarEvent } from '../types.ts';
-import { getCurrentAccountId, notifyThrottled } from '../util.ts';
+import { getCurrentAccountId, getServerID, notifyThrottled } from '../util.ts';
 import host from '@plugin-host';
 import { isEncryptedEvent, SENSITIVE_FIELDS } from '../util.ts';
 
@@ -36,6 +36,7 @@ export async function onFetchingEvents(events: CalendarEvent[]): Promise<Calenda
   if (!events || events.length === 0) return [];
 
   const currentAccountId = await getCurrentAccountId();
+  console.log('here is the current account id:', currentAccountId);
   const keysByAccount = new Map<string, Promise<CalendarKeys | null>>();
 
   const keysFor = (accountId: string) => {
@@ -56,11 +57,12 @@ export async function onFetchingEvents(events: CalendarEvent[]): Promise<Calenda
     }
     return p;
   };
-
+  const serverID = await getServerID();
   return Promise.all(
     events.map(async (event) => {
       if (!isEncryptedEvent(event)) return event; // legacy / already plain
-      const accountId = event.accountId || currentAccountId;
+      const accountId = event.accountName + '@' + serverID || currentAccountId;
+      console.log('Decrypting event with accountId:', accountId, 'event:', event);
       if (!accountId) return event;
       const keys = await keysFor(accountId);
       if (!keys) return event;

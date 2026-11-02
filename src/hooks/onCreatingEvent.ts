@@ -21,9 +21,12 @@ export async function onCreatingEvent(data: { localEvent: Partial<CalendarEvent>
   const { localEvent, serverEvent } = data;
   console.log('onBeforeEventCreate called with event:', localEvent);
   const accountId = await resolveAccountId(localEvent.accountId);
+  console.log('Resolved accountId:', accountId);
   const keys = await getKeys(accountId, { createIfMissing: true });
   console.log('Retrieved keys for account', accountId, keys);
   console.log('Encrypting event with AES key:', keys.dekAes);
   console.log('Event before encryption:', localEvent);
-  return { localEvent: localEvent , serverEvent: await encryptCalendarEvent(localEvent, keys.dekAes) } ;
+  const finalServerEvent = await encryptCalendarEvent(localEvent, keys.dekAes)
+  console.log('Event after encryption, before returning:', finalServerEvent);
+  return { localEvent: localEvent , serverEvent: finalServerEvent } ;
 }
