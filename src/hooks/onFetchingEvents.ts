@@ -70,7 +70,7 @@ export async function onFetchingEvents(events: CalendarEvent[]): Promise<Calenda
       if (!keys) {
         if (!notifiedAccounts.has(accountId)) {
           notifiedAccounts.add(accountId);
-          host.ui.confirm({
+          await host.ui.confirm({
             title: host.i18n.t('no_keys.title'),
             message: host.i18n.t('no_keys.message'),
           });
