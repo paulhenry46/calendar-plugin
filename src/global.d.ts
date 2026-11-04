@@ -15,6 +15,13 @@ declare module '@plugin-host' {
       warn(msg: string, ...args: any[]): void;
       error(msg: string, ...args: any[]): void;
     };
+
+    plugin: {
+    settings?: {
+      removeWhenError?: boolean;
+    };
+  } | undefined;
+
     toast: {
       success(msg: string): void;
       error(msg: string): void;

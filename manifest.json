@@ -35,7 +35,12 @@
     
   },
   "settingsSchema": {
-    
+    "removeWhenError": {
+      "type": "boolean",
+      "label": "Don't show events that cannot be decrypted",
+      "description": "This option will remove events that cannot be decrypted from the calendar view. If disabled, events will be shown, with the risk of corrupt data if you edit them.",
+      "default": true
+    }
   },
   "locales": {
     "en": {

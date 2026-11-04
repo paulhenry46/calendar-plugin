@@ -32,6 +32,10 @@ export async function decryptCalendarEvent(
  *
  */
 export async function onFetchingEvents(events: CalendarEvent[]): Promise<CalendarEvent[]> {
+  let removeWhenError = host.plugin?.settings?.removeWhenError;
+  if (removeWhenError === undefined) {
+    removeWhenError = true; // default to removing events that cannot be decrypted
+  }
   if (!events || events.length === 0) return [];
 
   const currentAccountId = await getCurrentAccountId();
@@ -59,30 +63,36 @@ export async function onFetchingEvents(events: CalendarEvent[]): Promise<Calenda
   };
 
   const serverID = await getServerID();
-  return Promise.all(
-    events.map(async (event) => {
-      if (!isEncryptedEvent(event)) return event; // legacy / already plain
-      const accountId = event.accountName + '@' + serverID || currentAccountId;
-      console.log('Decrypting event with accountId:', accountId, 'event:', event);
-      if (!accountId) return event;
+  const results = await Promise.all(
+  events.map(async (event) => {
+    if (!isEncryptedEvent(event)) return event; // legacy / already plain
+    const accountId = event.accountName + '@' + serverID || currentAccountId;
+    console.log('Decrypting event with accountId:', accountId, 'event:', event);
+    if (!accountId) return event;
 
-      const keys = await keysFor(accountId);
-      if (!keys) {
-        if (!notifiedAccounts.has(accountId)) {
-          notifiedAccounts.add(accountId);
-          await host.ui.confirm({
-            title: host.i18n.t('no_keys.title'),
-            message: host.i18n.t('no_keys.message'),
-          });
-        }
-        return event;
+    const keys = await keysFor(accountId);
+    if (!keys) {
+      if (!notifiedAccounts.has(accountId)) {
+        notifiedAccounts.add(accountId);
+        await host.ui.confirm({
+          title: host.i18n.t('no_keys.title'),
+          message: host.i18n.t('no_keys.message'),
+        });
       }
-      try {
-        return await decryptCalendarEvent(event, keys.dekAes);
-      } catch (e) {
-        host.log.warn(`Could not decrypt event ${event.id}:`, e);
-        return event;
-      }
-    })
-  );
+      
+      return removeWhenError ? null : event;
+    }
+
+    try {
+      return await decryptCalendarEvent(event, keys.dekAes);
+    } catch (e) {
+      host.log.warn(`Could not decrypt event ${event.id}:`, e);
+      
+      return removeWhenError ? null : event;
+    }
+  })
+);
+
+return results.filter((event) => event !== null);
+
 }
