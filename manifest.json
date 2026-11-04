@@ -39,7 +39,7 @@
   },
   "locales": {
     "en": {
-      "hint.master_unavailable" : "Master key unavailable. Please import your private key.",
+      "hint.master_unavailable" : "Master key unavailable. This happens if you don't use a compatible master plugin, like PGP True End-to-End or Aurion PGP or if you didn't imported/created a PGP key in those master plugin for this account.",
       "hint.master_locked" : "Master key is locked. Please unlock your private key.",
       "hint.master_unlocked_keys_loaded" : "Your calendar keys are unlocked.",
       "hint.master_unlocked_keys_not_loaded" : "Master keys are unlocked, but calendar keys are not loaded.",
