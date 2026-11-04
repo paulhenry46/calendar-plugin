@@ -187,3 +187,17 @@ export interface SessionKeysEntry {
   aesKey: CryptoKey;
   hmacKey: CryptoKey;
 }
+
+
+export interface AccountEntry {
+  id: string;/** Unique key: `${username}@${serverHostname}` */
+  label: string;
+  serverUrl: string;
+  username: string;
+  displayName: string;
+  email: string;
+  avatarColor: string;
+  isConnected: boolean;
+  isDefault: boolean;
+  isActive: boolean;
+}

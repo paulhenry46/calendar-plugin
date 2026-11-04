@@ -1,4 +1,3 @@
-import { isUnlockedLocally } from '../crypto/broadcastChannel.ts';
 import { decryptString } from '../crypto/encrypt.ts';
 import { CalendarCryptoError, getKeys, type CalendarKeys } from '../crypto/getKey.ts';
 import type { CalendarEvent } from '../types.ts';
@@ -38,12 +37,13 @@ export async function onFetchingEvents(events: CalendarEvent[]): Promise<Calenda
   const currentAccountId = await getCurrentAccountId();
   console.log('here is the current account id:', currentAccountId);
   const keysByAccount = new Map<string, Promise<CalendarKeys | null>>();
+  const notifiedAccounts = new Set<string>(); // avoid spamming the user with multiple modals for the same account in one fetch
 
   const keysFor = (accountId: string) => {
     let p = keysByAccount.get(accountId);
     if (!p) {
       const recentlyFailed =
-        !isUnlockedLocally(accountId) && Date.now() - (lastFailureAt.get(accountId) ?? 0) < FAILURE_TTL_MS;
+         Date.now() - (lastFailureAt.get(accountId) ?? 0) < FAILURE_TTL_MS;
       p = recentlyFailed
         ? Promise.resolve(null)
         : getKeys(accountId).catch((e) => {
@@ -57,6 +57,7 @@ export async function onFetchingEvents(events: CalendarEvent[]): Promise<Calenda
     }
     return p;
   };
+
   const serverID = await getServerID();
   return Promise.all(
     events.map(async (event) => {
@@ -64,12 +65,21 @@ export async function onFetchingEvents(events: CalendarEvent[]): Promise<Calenda
       const accountId = event.accountName + '@' + serverID || currentAccountId;
       console.log('Decrypting event with accountId:', accountId, 'event:', event);
       if (!accountId) return event;
+
       const keys = await keysFor(accountId);
-      if (!keys) return event;
+      if (!keys) {
+        if (!notifiedAccounts.has(accountId)) {
+          notifiedAccounts.add(accountId);
+          host.ui.confirm({
+            title: host.i18n.t('no_keys.title'),
+            message: host.i18n.t('no_keys.message'),
+          });
+        }
+        return event;
+      }
       try {
         return await decryptCalendarEvent(event, keys.dekAes);
       } catch (e) {
-        // Wrong key or tampered data (GCM authenticates): never render anything invented.
         host.log.warn(`Could not decrypt event ${event.id}:`, e);
         return event;
       }

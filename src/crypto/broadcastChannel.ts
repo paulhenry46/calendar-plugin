@@ -72,10 +72,6 @@ export function getBackgroundSessionKey(id: string): SessionKeysEntry | null {
   return _sessionKeys[id] || null;
 }
 
-export function isUnlockedLocally(accountId?: string): boolean {
-  return accountId ? !!_sessionKeys[accountId] : hasAnyKey();
-}
-
 // ─── Accès inter-onglets ────────────────────────────────────────────────
 
 /** Demande la clé aux autres onglets. Résout au premier onglet qui l'a, sinon null après timeout. */
