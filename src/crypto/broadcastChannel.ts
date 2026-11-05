@@ -66,13 +66,11 @@ export function closeBackgroundSessionListener(): void {
   listenerChannel = null;
 }
 
-// ─── Accès local (synchrone) ────────────────────────────────────────────
 
 export function getBackgroundSessionKey(id: string): SessionKeysEntry | null {
   return _sessionKeys[id] || null;
 }
 
-// ─── Accès inter-onglets ────────────────────────────────────────────────
 
 /** Demande la clé aux autres onglets. Résout au premier onglet qui l'a, sinon null après timeout. */
 export function fetchKeyFromBackground(accountId: string): Promise<SessionKeysEntry | null> {

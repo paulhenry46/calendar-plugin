@@ -61,7 +61,6 @@ export async function unlockCalendarKeys(
     );
   }
 
-  // Non extractibles : une fois importées, le JS ne peut plus relire le matériel brut.
   const dekAes = await crypto.subtle.importKey(
     'raw',
     base64ToBuffer(payload.rawAes),
@@ -83,7 +82,6 @@ export async function generateAndWrapCalendarKeys(secretFromMaster: string): Pro
   const kek = await importSecretAsKek(secretFromMaster);
   console.log('Generating new calendar keys and wrapping them with secret', secretFromMaster, 'and kek', kek);
 
-  // extractable: true uniquement le temps de les emballer (wrap) ; ces objets ne sortent pas d'ici.
   const dekAes = await crypto.subtle.generateKey({ name: 'AES-GCM', length: 256 }, true, ['encrypt', 'decrypt']);
   const dekHmac = await crypto.subtle.generateKey({ name: 'HMAC', hash: 'SHA-256' }, true, ['sign', 'verify']);
 
@@ -103,20 +101,9 @@ export async function generateAndWrapCalendarKeys(secretFromMaster: string): Pro
 const inflight = new Map<string, Promise<CalendarKeys>>();
 
 export interface GetKeysOptions {
-  /**
-   * Autorise la génération de nouvelles clés si le maître n'en a aucune pour ce compte.
-   * À réserver aux chemins d'ÉCRITURE (création / import) ou à l'action explicite de
-   * l'utilisateur : générer des clés par erreur à la lecture rendrait les données existantes
-   * indéchiffrables.
-   */
   createIfMissing?: boolean;
 }
 
-/**
- * Ordre : cache local → autres onglets → plugin maître (+ génération optionnelle).
- * Les appels concurrents pour un même compte partagent la même promesse
- * (un fetch de calendrier peut déclencher des dizaines de hooks en parallèle).
- */
 export function getKeys(accountId: string, opts: GetKeysOptions = {}): Promise<CalendarKeys> {
   console.log('getKeys called for accountId:', accountId, 'with options:', opts);
   const local = getBackgroundSessionKey(accountId);
@@ -159,10 +146,6 @@ async function loadKeys(accountId: string, opts: GetKeysOptions): Promise<Calend
     console.log('Storing new calendar keys for account', accountId, envelope, response.secret);
     await putKeysToMaster(accountId, envelope);
 
-    // On ne se fie pas au `ok` : on RELIT ce qui est réellement stocké.
-    //  - notre enveloppe → stockage confirmé ;
-    //  - une autre enveloppe → un autre onglet a gagné la course : on adopte la sienne ;
-    //  - rien → échec : on n'utilise PAS ces clés (tout ce qu'on chiffrerait serait perdu).
     const check = await getDataFromMaster(accountId);
     if (check.state !== 'ok' || !check.data) {
       throw new CalendarCryptoError('STORE_FAILED', 'The master plugin did not confirm storing the new calendar keys.');

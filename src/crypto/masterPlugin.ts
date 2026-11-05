@@ -1,20 +1,5 @@
 import type { LocalEncryptedEnvelope } from './getKey.ts';
 
-/**
- * Protocole avec le plugin maître (OpenPGP), canal 'pgp-session-bus' :
- *
- *   LIRE      → { type: 'REQUEST_CUSTOM_SECRET', requestId, salt, accountId }
- *             ← { type: 'RESPONSE_CUSTOM_SECRET', requestId, secret, data }
- *       - maître déverrouillé : secret = string, data = enveloppe ou undefined
- *       - maître verrouillé   : secret = null (réponse immédiate)
- *       - aucune clé par défaut pour ce compte : le maître ne répond PAS (timeout)
- *
- *   ÉCRIRE    → { type: 'REQUEST_ADD_CUSTOM_SECRET', requestId, salt, accountId, data }
- *             ← { type: 'RESPONSE_ADD_CUSTOM_SECRET', requestId, ok }
- *
- * Plusieurs onglets = plusieurs écouteurs maîtres qui répondent tous : on ne se fie donc
- * jamais à la première réponse "négative".
- */
 const CHANNEL_NAME = 'pgp-session-bus';
 const PLUGIN_STORAGE_SLOT_NAME = 'pgp-calendar-plugin';
 const MASTER_TIMEOUT_MS = 1500;

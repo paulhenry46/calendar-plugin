@@ -16,13 +16,6 @@ export function base64ToBuffer(base64: string): Uint8Array<ArrayBuffer> {
   return bytes;
 }
 
-function bufferToHex(buffer: ArrayBuffer): string {
-  return Array.from(new Uint8Array(buffer))
-    .map((b) => b.toString(16).padStart(2, '0'))
-    .join('');
-}
-
-/** AES-GCM, IV aléatoire de 12 octets préfixé au chiffré, le tout en base64. */
 export async function encryptString(text: string, key: CryptoKey): Promise<string> {
   const data = new TextEncoder().encode(text);
   const iv = crypto.getRandomValues(new Uint8Array(12));
