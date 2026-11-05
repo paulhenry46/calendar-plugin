@@ -10,7 +10,7 @@ This plugin is in beta stage.
 2. If messaging is enabled for an event, we will not encrypt date/time data : we will warn the user about this. To message the user, the server need to know when, so we don't have choice.
 #### 1.0.2
 3. If the event is encryptped, show a lock icon next to the title
-### How do this compare with Proton Calendar ?
+### How does this compare with Proton Calendar ?
 | Event Property | Proton Calendar | Calendar Plugin |
 | --- | --- | --- |
 | **Start/End Time & Time Zone Information** | 🟢 Plaintext | 🔒 Encrypted* |
