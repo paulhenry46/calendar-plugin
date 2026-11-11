@@ -201,3 +201,42 @@ export interface AccountEntry {
   isDefault: boolean;
   isActive: boolean;
 }
+
+// Only used to create events with the api.calendar.createEvent()
+export interface CalendarEventInput {
+  /** 1-500 characters. */
+  title: string;
+  /** Up to 10,000 characters of plain text. */
+  description?: string;
+  start: string;
+  /** Exclusive: an all-day event on May 1 ends on `2026-05-02`. */
+  end?: string;
+  /** ISO 8601 duration such as `PT1H30M`, or whole days (`P2D`) when all-day. */
+  duration?: string;
+  /** IANA zone of a wall-clock `start`. Defaults to the user's zone. */
+  timeZone?: string;
+  /** Defaults to true when `start` is a date without a time. */
+  isAllDay?: boolean;
+  /** Up to 500 characters. */
+  location?: string;
+  /** From `api.calendar.listCalendars()`. Defaults to the default calendar. */
+  calendarId?: string;
+  /**
+   * Attendees, at most 50, stored with the user as organizer. No invitation
+   * is sent; the user can send them from the event. An empty array removes
+   * them.
+   */
+  participants?: { email: string; name?: string }[];
+  /**
+   * Repeat the event. `until` is a date (YYYY-MM-DD); give `count` or
+   * `until`, not both. null removes the repetition (updates).
+   */
+  repeat?: { frequency: 'daily' | 'weekly' | 'monthly' | 'yearly'; interval?: number; count?: number; until?: string } | null;
+  /**
+   * createEvent only: your own stable id for the event, 1-128 of
+   * `A-Z a-z 0-9 . _ : -`. It is stored as `<uid>@<pluginId>.plugin.bulwark`,
+   * which is what CalendarEventView.uid then shows, so you can find the
+   * event again without remembering its id.
+   */
+  uid?: string;
+}

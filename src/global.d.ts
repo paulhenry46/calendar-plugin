@@ -40,6 +40,7 @@ declare module '@plugin-host' {
     };
       calendar: {
         getEvent(eventId: string): Promise<any>;
+        createEvent(event: CalendarEventInput): Promise<any>;
       };
   }
 
