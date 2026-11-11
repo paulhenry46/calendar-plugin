@@ -1,42 +1,90 @@
 import { encryptString } from '../crypto/encrypt.ts';
 import { getKeys } from '../crypto/getKey.ts';
-import type { CalendarEvent, CalendarEventInput } from '../types.ts';
+import type { CalendarEvent } from '../types.ts';
 import { resolveAccountId } from '../util.ts';
 import { pickSensitive, PUBLIC_PLACEHOLDER, publicStart } from '../util.ts';
-import { createRecurrenceOccurrences, expandRecurrence, formatLocal, parseLocal, stripRecurrence } from '../expand.ts';
+import { createRecurrenceOccurrences, stripRecurrence } from '../expand.ts';
 import host from '@plugin-host';
+
+/**
+ * Placeholder fields that must NOT be applied when the event carries alerts:
+ * the server has to know the real title and the real date/time to fire them.
+ */
+export const CLEAR_WHEN_ALERTS = [
+  'title',
+  'utcStart',
+  'utcEnd',
+  'duration',
+  'timeZone',
+  'showWithoutTime',
+] as const;
+
+/** True when the event has at least one alert. */
+export function hasAlerts(event: Partial<CalendarEvent>): boolean {
+  return !!event.alerts && Object.keys(event.alerts).length > 0;
+}
+
+/** Placeholders to send to the server: all of them, or all except the ones kept in clear for alerts. */
+export function placeholderFor(keepClear: boolean): Partial<typeof PUBLIC_PLACEHOLDER> {
+  const placeholder: Partial<typeof PUBLIC_PLACEHOLDER> = { ...PUBLIC_PLACEHOLDER };
+  if (keepClear) for (const f of CLEAR_WHEN_ALERTS) delete placeholder[f];
+  return placeholder;
+}
 
 export async function encryptCalendarEvent(
   event: Partial<CalendarEvent>,
-  aesKey: CryptoKey
+  aesKey: CryptoKey,
+  options: { keepClear?: boolean } = {}
 ): Promise<Partial<CalendarEvent>> {
   // The payload is built from the untouched event: real dates are encrypted as-is.
-  console.log('Encrypting event 23:', event);
   const description = await encryptString(JSON.stringify(pickSensitive(event)), aesKey);
+
+  if (options.keepClear) {
+    // Alerts: title, start and time fields stay in clear on the server.
+    // The other placeholders (participants, locations, ...) are still applied.
+    return { ...event, ...placeholderFor(true), description };
+  }
+
   // Only the public copy gets the month-truncated start.
-  const encryptedEvent = { ...event, ...PUBLIC_PLACEHOLDER, start: publicStart(event.start), description }
-  console.log('Event after encryption, before returning:', encryptedEvent);
-  return encryptedEvent;
+  return { ...event, ...placeholderFor(false), start: publicStart(event.start), description };
 }
 
+/** Asks the user to confirm that title and date/time will be stored in clear because of the alerts. */
+export async function confirmClearForAlerts(isRecurrent: boolean): Promise<boolean> {
+  let message = host.i18n.t('alerts.clear_confirm.message');
+  if (isRecurrent) {
+    message += '\n\n' + host.i18n.t('alerts.clear_confirm.recurrent_note');
+  }
 
+  return host.ui.confirm({
+    title: host.i18n.t('alerts.clear_confirm.title'),
+    message,
+    danger: true,
+    confirmLabel: host.i18n.t('alerts.clear_confirm.confirm'),
+  });
+}
 
 export async function onCreatingEvent(data: { localEvent: Partial<CalendarEvent> , serverEvent: Partial<CalendarEvent> }): Promise<{ localEvent: Partial<CalendarEvent> , serverEvent: Partial<CalendarEvent> }> {
-  let { localEvent, serverEvent } = data;
-  console.log('onBeforeEventCreate called with event:', localEvent);
+  let { localEvent } = data;
   const accountId = await resolveAccountId(localEvent.accountId);
   const keys = await getKeys(accountId, { createIfMissing: true });
 
-  if (localEvent.recurrenceRules?.length) {
+  const keepClear = hasAlerts(localEvent);
+  const isRecurrent = !!localEvent.recurrenceRules?.length;
+
+  // Ask BEFORE anything is created, so that a refusal leaves no orphan occurrence.
+  if (keepClear && !(await confirmClearForAlerts(isRecurrent))) {
+    throw new Error('Event creation cancelled by the user (alerts require clear title and time).');
+  }
+
+  if (isRecurrent) {
+    // Occurrences are created without alerts (CalendarEventInput has no such field)
+    // and stay fully encrypted.
     const created = await createRecurrenceOccurrences(localEvent, keys.dekAes);
     console.log(`Récurrence: ${created} occurrence(s) supplémentaire(s) créée(s)`);
     localEvent = stripRecurrence(localEvent);
   }
-  console.log('Resolved accountId:', accountId);
-  console.log('Retrieved keys for account', accountId, keys);
-  console.log('Encrypting event with AES key:', keys.dekAes);
-  console.log('Event before encryption:', localEvent);
-  const finalServerEvent = await encryptCalendarEvent(localEvent, keys.dekAes)
-  console.log('Event after encryption, before returning:', finalServerEvent);
-  return { localEvent: localEvent , serverEvent: finalServerEvent } ;
+
+  const finalServerEvent = await encryptCalendarEvent(localEvent, keys.dekAes, { keepClear });
+  return { localEvent, serverEvent: finalServerEvent };
 }

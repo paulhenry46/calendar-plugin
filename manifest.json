@@ -55,7 +55,11 @@
       "settings.desc" : "See Encryption status",
       "settings.pro_mode_desc": "Display all keys (all accounts)",
       "settings.pro_mode_title": "Pro Mode",
-      "settings.account_mode_desc": "Keys for account"
+      "settings.account_mode_desc": "Keys for account",
+      "alerts.clear_confirm.title": "Alerts: data stored in clear",
+      "alerts.clear_confirm.message": "This event has alerts. For them to work, its title, date and time will be stored in clear on the server (not encrypted). Do you want to continue?",
+      "alerts.clear_confirm.recurrent_note": "This event is recurring: alerts are not supported on the generated occurrences. Only the first event keeps its alerts, so you will need to add them individually to each of the other occurrences.",
+      "alerts.clear_confirm.confirm": "Continue"
     }
   }
 }
