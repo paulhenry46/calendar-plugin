@@ -3,7 +3,7 @@ import { getKeys } from '../crypto/getKey.ts';
 import type { CalendarEvent, CalendarEventInput } from '../types.ts';
 import { resolveAccountId } from '../util.ts';
 import { pickSensitive, PUBLIC_PLACEHOLDER, publicStart } from '../util.ts';
-import { expandRecurrence, formatLocal, parseLocal } from '../expand.ts';
+import { createRecurrenceOccurrences, expandRecurrence, formatLocal, parseLocal, stripRecurrence } from '../expand.ts';
 import host from '@plugin-host';
 
 export async function encryptCalendarEvent(
@@ -19,80 +19,7 @@ export async function encryptCalendarEvent(
   return encryptedEvent;
 }
 
-const sanitizeUid = (s: string) => s.replace(/[^A-Za-z0-9._:-]/g, '-');
 
-
-function shiftUtc(iso: string | null | undefined, deltaMs: number): string | null {
-  if (!iso) return null;
-  const t = Date.parse(iso);
-  return Number.isNaN(t) ? iso : new Date(t + deltaMs).toISOString();
-}
-
-/** Copie complète de l'événement initial, décalée à la date de l'occurrence, SANS récurrence. */
-function buildOccurrenceEvent(
-  base: Partial<CalendarEvent>,
-  start: string,
-  index: number
-): Partial<CalendarEvent> {
-  const baseUid = sanitizeUid((base.uid ?? crypto.randomUUID()).split('@')[0]).slice(0, 100);
-  const deltaMs = parseLocal(start).getTime() - parseLocal(base.start!).getTime();
-
-  const { id, originalId, baseEventId, ...rest } = base; // identifiants propres à l'événement initial
-  return {
-    ...rest,
-    uid: `${baseUid}-r${index}`,
-    start,
-    utcStart: shiftUtc(base.utcStart, deltaMs),
-    utcEnd: shiftUtc(base.utcEnd, deltaMs),
-    recurrenceRules: null,
-    recurrenceOverrides: null,
-    excludedRecurrenceRules: null,
-  };
-}
-
-async function createRecurrenceOccurrences(base: Partial<CalendarEvent>, aesKey: CryptoKey ): Promise<number> {
-  if (!base.start) return 0;
-
-  const initialStart = formatLocal(parseLocal(base.start), !!base.showWithoutTime);
-
-  const others = expandRecurrence(base).filter(s => s !== initialStart);
-
-  const calendarId = base.calendarIds
-    ? Object.keys(base.calendarIds).find(id => base.calendarIds![id])
-    : undefined;
-
-  for (let i = 0; i < others.length; i++) {
-    // 1. Occurrence complète, avec ses vraies dates
-    const occurrence = buildOccurrenceEvent(base, others[i], i + 1);
-
-    const enc = await encryptCalendarEvent(occurrence, aesKey);
-
-    const input: CalendarEventInput = {
-      title: enc.title ?? '',
-      description: enc.description,
-      start: enc.start!,
-      duration: enc.duration || undefined,
-      timeZone: enc.timeZone ?? undefined,
-      isAllDay: !!enc.showWithoutTime,
-      calendarId,
-      uid: occurrence.uid,
-    };
-    try {
-      await host.calendar.createEvent(input);
-    } finally {
-    }
-  }
-  return others.length;
-}
-
-function stripRecurrence<T extends Partial<CalendarEvent>>(event: T): T {
-  return {
-    ...event,
-    recurrenceRules: null,
-    recurrenceOverrides: null,
-    excludedRecurrenceRules: null,
-  };
-}
 
 export async function onCreatingEvent(data: { localEvent: Partial<CalendarEvent> , serverEvent: Partial<CalendarEvent> }): Promise<{ localEvent: Partial<CalendarEvent> , serverEvent: Partial<CalendarEvent> }> {
   let { localEvent, serverEvent } = data;

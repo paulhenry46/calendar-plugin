@@ -10,10 +10,18 @@ import {
   publicStart,
   SENSITIVE_FIELDS,
 } from '../util.ts';
+import { createRecurrenceOccurrences, stripRecurrence } from '../expand.ts';
 
 export async function onUpdatingEvent(data: {localUpdates: Partial<CalendarEvent>, serverUpdates: Partial<CalendarEvent>, eventId: string}): Promise<{localUpdates: Partial<CalendarEvent>, serverUpdates: Partial<CalendarEvent>, eventId: string}> {
-  const patch = data.localUpdates;
-  if (!SENSITIVE_FIELDS.some((f) => f in patch)) return { localUpdates: patch, serverUpdates: patch, eventId: data.eventId};
+  let patch = data.localUpdates;
+
+  // A recurrence rule is being added/changed by this update.
+  const hasRecurrence = !!patch.recurrenceRules?.length;
+
+  if (!hasRecurrence && !SENSITIVE_FIELDS.some((f) => f in patch)) {
+    return { localUpdates: patch, serverUpdates: patch, eventId: data.eventId };
+  }
+
   const existing: CalendarEvent = await host.calendar.getEvent(data.eventId);
   console.log('exisitng', existing);
   const accountId = await resolveAccountId(existing.accountId);
@@ -33,7 +41,15 @@ export async function onUpdatingEvent(data: {localUpdates: Partial<CalendarEvent
   }
 
   // Real values only: the payload is never truncated or altered.
-  const merged: CalendarEvent = { ...existing, ...currentPayload, ...patch };
+  let merged: CalendarEvent = { ...existing, ...currentPayload, ...patch };
+
+  if (hasRecurrence) {
+    const created = await createRecurrenceOccurrences(merged, keys.dekAes);
+    console.log(`Récurrence: ${created} occurrence`);
+    patch = stripRecurrence(patch);
+    merged = stripRecurrence(merged);
+  }
+
   const description = await encryptString(JSON.stringify(pickSensitive(merged)), keys.dekAes);
 
   // Public copy: sensitive fields removed, placeholders applied on every update (idempotent),
@@ -42,6 +58,6 @@ export async function onUpdatingEvent(data: {localUpdates: Partial<CalendarEvent
   const updated: Partial<CalendarEvent> = { ...patch };
   for (const f of SENSITIVE_FIELDS) delete updated[f];
   Object.assign(updated, { start: publicStart(merged.start), description });
-  console.log('onUpdatingEvent Finished', { localUpdates: data.localUpdates, serverUpdates: updated, eventId: data.eventId });
-  return { localUpdates: data.localUpdates, serverUpdates: updated, eventId: data.eventId };
+  console.log('onUpdatingEvent Finished', { localUpdates: patch, serverUpdates: updated, eventId: data.eventId });
+  return { localUpdates: patch, serverUpdates: updated, eventId: data.eventId };
 }
