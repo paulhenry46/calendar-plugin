@@ -83,7 +83,7 @@ export async function onCreatingEvent(data: { localEvent: Partial<CalendarEvent>
     // we remove alert data and toggle keepClear
     localEvent.alerts = null;
     keepClear = false;
-  }else{
+  }else if(keepClear){
     localEvent.uid = 'half-encrypted-' + generateUUID();
   }
 

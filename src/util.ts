@@ -109,6 +109,7 @@ export function isEncryptedEvent(event: Partial<CalendarEvent>): boolean {
   //serach in uid if there is 'half-encrypted-' string please
   return event.title === 'Encrypted' || event.uid?.includes('half-encrypted-') === true;
 }
+
 // We use the active accoutns server name to deduce the server name and construt an account ID.
 export async function getServerID(){
   const accountId = await getCurrentAccountId();
