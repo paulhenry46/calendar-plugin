@@ -19,9 +19,14 @@ export async function decryptCalendarEvent(
   const payload = JSON.parse(await decryptString(encryptedEvent.description, aesKey));
   console.log(payload);
   const restored: Partial<CalendarEvent> = {};
+  const emptyDescription = !payload.description || (typeof payload.description === 'string' && payload.description.trim() === '');
   // Whitelist: the payload can never overwrite id, accountId, etc.
   for (const field of SENSITIVE_FIELDS) {
     if (field in payload) (restored as Record<string, unknown>)[field] = payload[field];
+  }
+  if(emptyDescription){
+    // we do that because if there is no description, the description is used by the encrypted data and user see it instead of nothing
+    encryptedEvent.description = '';
   }
   console.log('final event dechiffré', { ...encryptedEvent, ...restored });
   return { ...encryptedEvent, ...restored };
