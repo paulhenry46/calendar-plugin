@@ -85,7 +85,7 @@ export async function onUpdatingEvent(data: {localUpdates: Partial<CalendarEvent
   }
 
   if (hasRecurrence) {
-    const created = await createRecurrenceOccurrences(merged, keys.dekAes);
+    const created = await createRecurrenceOccurrences(merged);
     console.log(`Récurrence: ${created} occurrence`);
     patch = stripRecurrence(patch);
     merged = stripRecurrence(merged);

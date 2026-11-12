@@ -66,6 +66,11 @@ export async function confirmClearForAlerts(isRecurrent: boolean): Promise<boole
 
 export async function onCreatingEvent(data: { localEvent: Partial<CalendarEvent> , serverEvent: Partial<CalendarEvent> }): Promise<{ localEvent: Partial<CalendarEvent> , serverEvent: Partial<CalendarEvent> }> {
   let { localEvent } = data;
+  // if uid has an @, we must remove the part behinf the @.
+  if (localEvent.uid?.includes("@")) {
+    localEvent.uid = localEvent.uid.substring(0, localEvent.uid.indexOf("@"));
+  }
+  
   const accountId = await resolveAccountId(localEvent.accountId);
   const keys = await getKeys(accountId, { createIfMissing: true });
 
@@ -80,7 +85,7 @@ export async function onCreatingEvent(data: { localEvent: Partial<CalendarEvent>
   if (isRecurrent) {
     // Occurrences are created without alerts (CalendarEventInput has no such field)
     // and stay fully encrypted.
-    const created = await createRecurrenceOccurrences(localEvent, keys.dekAes);
+    const created = await createRecurrenceOccurrences(localEvent);
     console.log(`Récurrence: ${created} occurrence(s) supplémentaire(s) créée(s)`);
     localEvent = stripRecurrence(localEvent);
   }

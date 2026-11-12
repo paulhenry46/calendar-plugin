@@ -13,14 +13,17 @@ export async function decryptCalendarEvent(
   encryptedEvent: CalendarEvent,
   aesKey: CryptoKey
 ): Promise<CalendarEvent> {
+  console.log("decrypting event", encryptedEvent)
   if (!isEncryptedEvent(encryptedEvent)) return encryptedEvent;
-
+  console.log('bien chiffré a priori')
   const payload = JSON.parse(await decryptString(encryptedEvent.description, aesKey));
+  console.log(payload);
   const restored: Partial<CalendarEvent> = {};
   // Whitelist: the payload can never overwrite id, accountId, etc.
   for (const field of SENSITIVE_FIELDS) {
     if (field in payload) (restored as Record<string, unknown>)[field] = payload[field];
   }
+  console.log('final event dechiffré', { ...encryptedEvent, ...restored });
   return { ...encryptedEvent, ...restored };
 }
 
@@ -76,7 +79,7 @@ export async function onFetchingEvents(events: CalendarEvent[]): Promise<Calenda
         notifiedAccounts.add(accountId);
         await host.ui.confirm({
           title: host.i18n.t('no_keys.title'),
-          message: host.i18n.t('no_keys.message'),
+          message: host.i18n.t('no_keys.message') + event.accountName,
         });
       }
       
@@ -86,13 +89,14 @@ export async function onFetchingEvents(events: CalendarEvent[]): Promise<Calenda
     try {
       return await decryptCalendarEvent(event, keys.dekAes);
     } catch (e) {
+      console.log(event)
       host.log.warn(`Could not decrypt event ${event.id}:`, e);
       
       return removeWhenError ? null : event;
     }
   })
 );
-
+console.log(results);
 return results.filter((event) => event !== null);
 
 }

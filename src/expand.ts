@@ -162,13 +162,14 @@ function buildOccurrenceEvent(
   };
 }
 
-export async function createRecurrenceOccurrences(base: Partial<CalendarEvent>, aesKey: CryptoKey ): Promise<number> {
+export async function createRecurrenceOccurrences(base: Partial<CalendarEvent> ): Promise<number> {
   if (!base.start) return 0;
+  console.log('base occurence non chiffré', base)
 
   const initialStart = formatLocal(parseLocal(base.start), !!base.showWithoutTime);
 
   const others = expandRecurrence(base).filter(s => s !== initialStart);
-
+  console.log('other number', others)
   const calendarId = base.calendarIds
     ? Object.keys(base.calendarIds).find(id => base.calendarIds![id])
     : undefined;
@@ -176,22 +177,24 @@ export async function createRecurrenceOccurrences(base: Partial<CalendarEvent>, 
   for (let i = 0; i < others.length; i++) {
     // 1. Occurrence complète, avec ses vraies dates
     const occurrence = buildOccurrenceEvent(base, others[i], i + 1);
+    console.log('occurence créee non chiffré', i, occurrence)
 
-    const enc = await encryptCalendarEvent(occurrence, aesKey);
-
+    console.log('occurence créee chiffrée', i, occurrence)
     const input: CalendarEventInput = {
-      title: enc.title ?? '',
-      description: enc.description,
-      start: enc.start!,
-      duration: enc.duration || undefined,
-      timeZone: enc.timeZone ?? undefined,
-      isAllDay: !!enc.showWithoutTime,
+      title: occurrence.title ?? '',
+      description: occurrence.description,
+      start: occurrence.start!,
+      duration: occurrence.duration || undefined,
+      timeZone: occurrence.timeZone ?? undefined,
+      isAllDay: !!occurrence.showWithoutTime,
       calendarId,
       uid: occurrence.uid,
     };
     try {
-      await host.calendar.createEvent(input);
-    } finally {
+      const result = await host.calendar.createEvent(input);
+      console.log('crée result', result);
+    } catch(e) {
+      console.log(e);
     }
   }
   return others.length;
