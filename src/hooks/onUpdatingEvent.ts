@@ -108,6 +108,8 @@ export async function onUpdatingEvent(data: {localUpdates: Partial<CalendarEvent
     // The public start always follows the merged start, so moving an event to another
     // month moves it on the server too.
     Object.assign(updated, { start: publicStart(merged.start), description });
+    delete updated.utcStart;
+    delete updated.utcEnd;
   }
 
   console.log('onUpdatingEvent Finished', { localUpdates: patch, serverUpdates: updated, eventId: data.eventId });
