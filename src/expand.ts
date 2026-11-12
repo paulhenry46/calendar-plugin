@@ -2,7 +2,7 @@ import { encryptCalendarEvent } from './hooks/onCreatingEvent.ts';
 import type { CalendarEvent, CalendarEventInput, CalendarRecurrenceRule } from './types.ts';
 import host from '@plugin-host';
 
-const MAX_OCCURRENCES = 366;      
+const MAX_OCCURRENCES = 53;    
 const DEFAULT_HORIZON_YEARS = 2; 
 const DOW = ['su', 'mo', 'tu', 'we', 'th', 'fr', 'sa'];
 const DAY_MS = 86_400_000;
@@ -164,6 +164,7 @@ function buildOccurrenceEvent(
 
 export async function createRecurrenceOccurrences(base: Partial<CalendarEvent> ): Promise<number> {
   if (!base.start) return 0;
+  delete base.uid;
   console.log('base occurence non chiffré', base)
 
   const initialStart = formatLocal(parseLocal(base.start), !!base.showWithoutTime);

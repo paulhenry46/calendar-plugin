@@ -1,7 +1,7 @@
 import { encryptString } from '../crypto/encrypt.ts';
 import { getKeys } from '../crypto/getKey.ts';
 import type { CalendarEvent } from '../types.ts';
-import { resolveAccountId } from '../util.ts';
+import { generateUUID, resolveAccountId } from '../util.ts';
 import { pickSensitive, PUBLIC_PLACEHOLDER, publicStart } from '../util.ts';
 import { createRecurrenceOccurrences, stripRecurrence } from '../expand.ts';
 import host from '@plugin-host';
@@ -56,7 +56,7 @@ export async function confirmClearForAlerts(isRecurrent: boolean): Promise<boole
     message += '\n\n' + host.i18n.t('alerts.clear_confirm.recurrent_note');
   }
 
-  return host.ui.confirm({
+  return await host.ui.confirm({
     title: host.i18n.t('alerts.clear_confirm.title'),
     message,
     danger: true,
@@ -66,7 +66,8 @@ export async function confirmClearForAlerts(isRecurrent: boolean): Promise<boole
 
 export async function onCreatingEvent(data: { localEvent: Partial<CalendarEvent> , serverEvent: Partial<CalendarEvent> }): Promise<{ localEvent: Partial<CalendarEvent> , serverEvent: Partial<CalendarEvent> }> {
   let { localEvent } = data;
-  // if uid has an @, we must remove the part behinf the @.
+  // if uid has an @, we must remove the part behinf the @. Indeed, when creating avent from api, a part naming the plugin id added. 
+  // This is not the case when creating a single event with the hook. As a result, this can disclose info about which event is recurrent or not.
   if (localEvent.uid?.includes("@")) {
     localEvent.uid = localEvent.uid.substring(0, localEvent.uid.indexOf("@"));
   }
@@ -74,12 +75,16 @@ export async function onCreatingEvent(data: { localEvent: Partial<CalendarEvent>
   const accountId = await resolveAccountId(localEvent.accountId);
   const keys = await getKeys(accountId, { createIfMissing: true });
 
-  const keepClear = hasAlerts(localEvent);
+  let keepClear = hasAlerts(localEvent);
   const isRecurrent = !!localEvent.recurrenceRules?.length;
 
   // Ask BEFORE anything is created, so that a refusal leaves no orphan occurrence.
   if (keepClear && !(await confirmClearForAlerts(isRecurrent))) {
-    throw new Error('Event creation cancelled by the user (alerts require clear title and time).');
+    // we remove alert data and toggle keepClear
+    localEvent.alerts = null;
+    keepClear = false;
+  }else{
+    localEvent.uid = 'half-encrypted-' + generateUUID();
   }
 
   if (isRecurrent) {
