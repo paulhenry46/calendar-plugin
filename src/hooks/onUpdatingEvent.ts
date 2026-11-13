@@ -17,7 +17,6 @@ import {
 } from './onCreatingEvent.ts';
 
 export async function onUpdatingEvent(data: {localUpdates: Partial<CalendarEvent>, serverUpdates: Partial<CalendarEvent>, eventId: string}): Promise<{localUpdates: Partial<CalendarEvent>, serverUpdates: Partial<CalendarEvent>, eventId: string}> {
-  console.log('--- [onUpdatingEvent] Début ---', { eventId: data.eventId, localUpdates: data.localUpdates });
   
   let patch = data.localUpdates;
 
@@ -25,27 +24,22 @@ export async function onUpdatingEvent(data: {localUpdates: Partial<CalendarEvent
   const touchesAlerts = 'alerts' in patch;
 
   if (!hasRecurrence && !touchesAlerts && !SENSITIVE_FIELDS.some((f) => f in patch)) {
-    console.log('--- [onUpdatingEvent] Aucun champ sensible, récurrence ou alerte modifié. Passage direct. ---');
     return { localUpdates: patch, serverUpdates: patch, eventId: data.eventId };
   }
 
   const existing: CalendarEvent = await host.calendar.getEvent(data.eventId);
-  console.log('--- [onUpdatingEvent] Événement existant récupéré ---', existing);
 
   const accountId = await resolveAccountId(existing.accountId);
   const alreadyEncrypted = false;
 
   const keys = await getKeys(accountId, { createIfMissing: !alreadyEncrypted });
-  console.log('--- [onUpdatingEvent] Clés récupérées avec succès ---');
 
   let currentPayload: Partial<CalendarEvent> = {};
   if (alreadyEncrypted) {
     try {
       const decryptedString = await decryptString(existing.description, keys.dekAes);
       currentPayload = JSON.parse(decryptedString);
-      console.log('--- [onUpdatingEvent] Payload décrypté avec succès ---', currentPayload);
     } catch (error) {
-      console.error('--- [onUpdatingEvent] ERREUR DE DÉCRYPTAGE ---', error);
       throw new Error('Failed to decrypt the existing event payload, update aborted: ' + error);
     }
   }
@@ -83,6 +77,5 @@ export async function onUpdatingEvent(data: {localUpdates: Partial<CalendarEvent
     delete updated.utcEnd;
   }
 
-  console.log('--- [onUpdatingEvent] OK ---', { localUpdates: data.localUpdates, serverUpdates: updated, eventId: data.eventId });
   return { localUpdates: data.localUpdates, serverUpdates: updated, eventId: data.eventId };
 }

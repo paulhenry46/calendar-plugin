@@ -43,18 +43,14 @@ export async function unlockCalendarKeys(
   const kek = await importSecretAsKek(secretFromMaster);
 
   let payload: { rawAes: string; rawHmac: string };
-  console.log('Unlocking calendar keys with secret', secretFromMaster, 'and envelope', envelope);
-  console.log('derived kek', kek);
   try {
     const decrypted = await crypto.subtle.decrypt(
       { name: 'AES-GCM', iv: base64ToBuffer(envelope.iv) },
       kek,
       base64ToBuffer(envelope.wrappedKeys)
     );
-    console.log('Decrypted payload', new TextDecoder().decode(decrypted));
     payload = JSON.parse(new TextDecoder().decode(decrypted));
   } catch (e) {
-    console.error('Failed to unwrap calendar keys with secret', secretFromMaster, 'and envelope', envelope, e); 
     throw new CalendarCryptoError(
       'UNWRAP_FAILED',
       'Unable to unwrap the calendar keys with the secret provided by the master plugin.'
@@ -80,7 +76,6 @@ export async function unlockCalendarKeys(
 
 export async function generateAndWrapCalendarKeys(secretFromMaster: string): Promise<LocalEncryptedEnvelope> {
   const kek = await importSecretAsKek(secretFromMaster);
-  console.log('Generating new calendar keys and wrapping them with secret', secretFromMaster, 'and kek', kek);
 
   const dekAes = await crypto.subtle.generateKey({ name: 'AES-GCM', length: 256 }, true, ['encrypt', 'decrypt']);
   const dekHmac = await crypto.subtle.generateKey({ name: 'HMAC', hash: 'SHA-256' }, true, ['sign', 'verify']);
@@ -105,7 +100,6 @@ export interface GetKeysOptions {
 }
 
 export function getKeys(accountId: string, opts: GetKeysOptions = {}): Promise<CalendarKeys> {
-  console.log('getKeys called for accountId:', accountId, 'with options:', opts);
   const local = getBackgroundSessionKey(accountId);
   if (local) return Promise.resolve({ dekAes: local.aesKey, dekHmac: local.hmacKey });
 
@@ -119,7 +113,6 @@ export function getKeys(accountId: string, opts: GetKeysOptions = {}): Promise<C
 }
 
 async function loadKeys(accountId: string, opts: GetKeysOptions): Promise<CalendarKeys> {
-  console.log('Loading dans loadkeys keys for accountId:', accountId, 'with options:', opts);
   const fromTab = await fetchKeyFromBackground(accountId);
   if (fromTab) {
     broadcastUnlockKey(fromTab); // met aussi en cache localement
@@ -143,14 +136,12 @@ async function loadKeys(accountId: string, opts: GetKeysOptions): Promise<Calend
       throw new CalendarCryptoError('NO_KEYS', 'No calendar keys exist for this account yet.');
     }
     const envelope = await generateAndWrapCalendarKeys(response.secret);
-    console.log('Storing new calendar keys for account', accountId, envelope, response.secret);
     await putKeysToMaster(accountId, envelope);
 
     const check = await getDataFromMaster(accountId);
     if (check.state !== 'ok' || !check.data) {
       throw new CalendarCryptoError('STORE_FAILED', 'The master plugin did not confirm storing the new calendar keys.');
     }
-    console.log('Calendar keys stored for account', accountId, check.data, check.secret);
     keys = await unlockCalendarKeys(check.secret, check.data);
   } else {
     keys = await unlockCalendarKeys(response.secret, response.data);

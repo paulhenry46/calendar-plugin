@@ -15,46 +15,45 @@ export interface CalendarEvent {
   localAccountId?: string;
   isDraft: boolean;
   isOrigin: boolean;
-  utcStart: string | null;// ENCRYPTED
-  utcEnd: string | null;// ENCRYPTED
+  utcStart: string | null;
+  utcEnd: string | null;
   '@type': 'Event';
   uid: string;
-  title: string; // REPLACED BY DATE MONTH ENCRYPTED
-  description: string; // REPLACED BY THE CONTENT ENCRYPTED
+  title: string;
+  description: string;
   descriptionContentType: string;
   created: string | null;
   updated: string;
   sequence: number;
-  start: string;// ENCRYPTED to descruption and replaced by 01/01/1970 00:00:00
-  duration: string;// ENCRYPTED to descruption and replaced by 1 hour
-  timeZone: string | null; //ENCRYPTED to descruption and replaced by 1 hour
+  start: string;
+  duration: string;
+  timeZone: string | null;
   showWithoutTime: boolean;
   status: 'tentative' | 'confirmed' | 'cancelled';
   freeBusyStatus: 'free' | 'busy';
   privacy: 'public' | 'private' | 'secret';
   color: string | null;
-  keywords: Record<string, boolean> | null;//ENCRYPTED to descruption and removed
-  categories: Record<string, boolean> | null;//ENCRYPTED to descruption and removed
+  keywords: Record<string, boolean> | null;
+  categories: Record<string, boolean> | null;
   locale: string | null;
-  replyTo: Record<string, string> | null;//ENCRYPTED to descruption and removed
-  organizerCalendarAddress: string | null;//ENCRYPTED to descruption and removed
-  participants: Record<string, CalendarParticipant> | null;//ENCRYPTED to descruption and removed
+  replyTo: Record<string, string> | null;
+  organizerCalendarAddress: string | null;
+  participants: Record<string, CalendarParticipant> | null;
   mayInviteSelf: boolean;
   mayInviteOthers: boolean;
   hideAttendees: boolean;
-  recurrenceId: string | null;//NOT ENCRYPTED FOR NOW
-  recurrenceIdTimeZone: string | null;//NOT ENCRYPTED FOR NOW
-  recurrenceRules: CalendarRecurrenceRule[] | null;//NOT ENCRYPTED FOR NOW
-  recurrenceOverrides: Record<string, Partial<CalendarEvent>> | null;//NOT ENCRYPTED FOR NOW
-  excludedRecurrenceRules: CalendarRecurrenceRule[] | null;//NOT ENCRYPTED FOR NOW
+  recurrenceId: string | null;
+  recurrenceIdTimeZone: string | null;
+  recurrenceRules: CalendarRecurrenceRule[] | null;
+  recurrenceOverrides: Record<string, Partial<CalendarEvent>> | null;
+  excludedRecurrenceRules: CalendarRecurrenceRule[] | null;
   useDefaultAlerts: boolean;
   alerts: Record<string, CalendarEventAlert> | null;
-  locations: Record<string, CalendarLocation> | null;//ENCRYPTED to descruption and removed
-  virtualLocations: Record<string, CalendarVirtualLocation> | null;//ENCRYPTED to descruption and removed
-  links: Record<string, CalendarLink> | null;//ENCRYPTED to descruption and removed
-  relatedTo: Record<string, CalendarRelation> | null;//ENCRYPTED to descruption and removed
+  locations: Record<string, CalendarLocation> | null;
+  virtualLocations: Record<string, CalendarVirtualLocation> | null;
+  links: Record<string, CalendarLink> | null;
+  relatedTo: Record<string, CalendarRelation> | null;
 }
-// For recurrences, in future, we will genreate ourslef the events, in this way, no need to store recurrence rules. Howerver we will lose the abaility to edit all occurence at same time.
 export interface CalendarParticipant {
   '@type': 'Participant';
   name: string;

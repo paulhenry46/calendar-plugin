@@ -61,7 +61,6 @@ export function SettingsSection() {
     const updatedStatuses: AccountStatusState = {};
     await Promise.all(
       targetAccountIds.map(async (id) => {
-        console.log('Checking status for account 22:', id);
         updatedStatuses[id] = await checkStatusForAccount(id);
       })
     );
@@ -88,7 +87,6 @@ export function SettingsSection() {
 
   const loadAccount = (accountId: string) =>
     runAction(accountId, async () => {
-      console.log('Loading account:', accountId);
       await getKeys(accountId);
     });
 
@@ -183,7 +181,6 @@ export function SettingsSection() {
                   backgroundColor: selectedAccountId === undefined ? 'var(--color-card, #ffffff)' : undefined,
                 }}
               >
-                {/* En-tête avec nom / ID du compte en Mode Pro */}
                 {selectedAccountId === undefined && (
                   <div style={{ fontSize: '14px', fontWeight: 600, color: 'var(--color-foreground, #0f172a)' }}>
                     {account.username || account.email || account.id}

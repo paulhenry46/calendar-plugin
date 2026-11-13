@@ -165,12 +165,10 @@ function buildOccurrenceEvent(
 export async function createRecurrenceOccurrences(base: Partial<CalendarEvent> ): Promise<number> {
   if (!base.start) return 0;
   delete base.uid;
-  console.log('base occurence non chiffré', base)
 
   const initialStart = formatLocal(parseLocal(base.start), !!base.showWithoutTime);
 
   const others = expandRecurrence(base).filter(s => s !== initialStart);
-  console.log('other number', others)
   const calendarId = base.calendarIds
     ? Object.keys(base.calendarIds).find(id => base.calendarIds![id])
     : undefined;
@@ -178,9 +176,7 @@ export async function createRecurrenceOccurrences(base: Partial<CalendarEvent> )
   for (let i = 0; i < others.length; i++) {
     // 1. Occurrence complète, avec ses vraies dates
     const occurrence = buildOccurrenceEvent(base, others[i], i + 1);
-    console.log('occurence créee non chiffré', i, occurrence)
 
-    console.log('occurence créee chiffrée', i, occurrence)
     const input: CalendarEventInput = {
       title: occurrence.title ?? '',
       description: occurrence.description,
@@ -193,9 +189,8 @@ export async function createRecurrenceOccurrences(base: Partial<CalendarEvent> )
     };
     try {
       const result = await host.calendar.createEvent(input);
-      console.log('crée result', result);
     } catch(e) {
-      console.log(e);
+      host.log.warn(e as string);
     }
   }
   return others.length;

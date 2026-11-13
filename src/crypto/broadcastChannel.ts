@@ -10,7 +10,7 @@ type SessionMessage =
   | { type: 'PONG_STATUS'; requestId: string; isUnlocked: boolean }
   | { type: 'SET_KEY'; keyEntry: SessionKeysEntry }
   | { type: 'KEY_UPDATED'; isUnlocked: boolean }
-  | { type: 'CLEAR_KEY'; id: string } // id vide => tout effacer
+  | { type: 'CLEAR_KEY'; id: string }
   | { type: 'REQUEST_KEY_DATA'; requestId: string; keyId: string }
   | { type: 'RESPONSE_KEY_DATA'; requestId: string; keyEntry: SessionKeysEntry | null };
 
@@ -19,7 +19,6 @@ const hasAnyKey = () => Object.keys(_sessionKeys).length > 0;
 
 let listenerChannel: BroadcastChannel | null = null;
 
-/** À appeler une fois à l'activation du plugin. Idempotent. */
 export function initBackgroundSessionListener(): void {
   if (listenerChannel) return;
   const channel = new BroadcastChannel(CHANNEL_NAME);
@@ -49,8 +48,6 @@ export function initBackgroundSessionListener(): void {
         break;
 
       case 'REQUEST_KEY_DATA': {
-        // On ne répond que si on possède la clé : sinon un onglet "vide" pourrait
-        // répondre null avant un onglet qui l'a.
         const keyEntry = _sessionKeys[msg.keyId];
         if (keyEntry) {
           channel.postMessage({ type: 'RESPONSE_KEY_DATA', requestId: msg.requestId, keyEntry });
@@ -72,7 +69,8 @@ export function getBackgroundSessionKey(id: string): SessionKeysEntry | null {
 }
 
 
-/** Demande la clé aux autres onglets. Résout au premier onglet qui l'a, sinon null après timeout. */
+
+/** Ask the key from the background. */
 export function fetchKeyFromBackground(accountId: string): Promise<SessionKeysEntry | null> {
   return new Promise((resolve) => {
     const channel = new BroadcastChannel(CHANNEL_NAME);
@@ -96,7 +94,7 @@ export function fetchKeyFromBackground(accountId: string): Promise<SessionKeysEn
   });
 }
 
-/** true si au moins un onglet (ou celui-ci) détient une clé. */
+/** true if at least one tab (or this one) holds a key. */
 export async function checkIsKeyUnlocked(): Promise<boolean> {
   if (hasAnyKey()) return true;
   return new Promise((resolve) => {
@@ -121,7 +119,7 @@ export async function checkIsKeyUnlocked(): Promise<boolean> {
   });
 }
 
-/** Mémorise la clé localement (effet immédiat) puis la diffuse aux autres onglets. */
+/** memory the key locally (immediate effect) then broadcast it to other tabs. */
 export function broadcastUnlockKey(keyEntry: SessionKeysEntry): void {
   _sessionKeys[keyEntry.id] = keyEntry;
   const channel = new BroadcastChannel(CHANNEL_NAME);
@@ -129,7 +127,7 @@ export function broadcastUnlockKey(keyEntry: SessionKeysEntry): void {
   channel.close();
 }
 
-/** Efface la clé `keyId` (ou toutes si omis), ici et dans les autres onglets. */
+/** Effectively lock the key `keyId` (or all if omitted), here and in the other tabs. */
 export function broadcastLockKey(keyId?: string): void {
   if (keyId) delete _sessionKeys[keyId];
   else _sessionKeys = {};

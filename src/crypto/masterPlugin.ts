@@ -3,16 +3,15 @@ import type { LocalEncryptedEnvelope } from './getKey.ts';
 const CHANNEL_NAME = 'pgp-session-bus';
 const PLUGIN_STORAGE_SLOT_NAME = 'pgp-calendar-plugin';
 const MASTER_TIMEOUT_MS = 1500;
-/** Après une réponse négative, on laisse ce délai aux autres onglets pour répondre mieux. */
+
 const GRACE_AFTER_NEGATIVE_MS = 400;
 
 export type MasterReply =
   | { state: 'ok'; secret: string; data: LocalEncryptedEnvelope | undefined }
-  | { state: 'locked' } // le maître répond mais sa clé par défaut n'est pas déverrouillée
-  | { state: 'unavailable' }; // pas de réponse : absent, ou pas de clé par défaut pour ce compte
+  | { state: 'locked' }
+  | { state: 'unavailable' };
 
 export function getDataFromMaster(accountId: string): Promise<MasterReply> {
-  console.log('Requesting keys from master for accountId:', accountId);
   return new Promise((resolve) => {
     const channel = new BroadcastChannel(CHANNEL_NAME);
     const requestId = crypto.randomUUID();
@@ -35,7 +34,6 @@ export function getDataFromMaster(accountId: string): Promise<MasterReply> {
       if (typeof d.secret === 'string' && d.secret.length > 0) {
         finish({ state: 'ok', secret: d.secret, data: toEnvelope(d.data) });
       } else if (!sawLocked) {
-        // secret null = onglet maître verrouillé. Un autre onglet peut être déverrouillé.
         sawLocked = true;
         clearTimeout(timer);
         timer = setTimeout(finishNegative, GRACE_AFTER_NEGATIVE_MS);
@@ -46,11 +44,6 @@ export function getDataFromMaster(accountId: string): Promise<MasterReply> {
   });
 }
 
-/**
- * Demande au maître de stocker l'enveloppe. true uniquement sur `ok: true` explicite.
- * Un `ok: false` peut venir d'un onglet qui a perdu une course : l'appelant doit relire
- * (getDataFromMaster) pour savoir ce qui est réellement stocké.
- */
 export function putKeysToMaster(accountId: string, envelope: LocalEncryptedEnvelope): Promise<boolean> {
   return new Promise((resolve) => {
     const channel = new BroadcastChannel(CHANNEL_NAME);

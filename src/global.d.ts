@@ -117,7 +117,6 @@ declare module '@plugin-host/ui' {
   export const Alert: React.FC<AlertProps>;
   export const Spinner: React.FC<{ size?: 'sm' | 'md' | 'lg' }>;
   
-  // Composants additionnels de l'UI si besoin
   export const Field: React.FC<CommonProps>;
   export const Input: React.FC<any>;
   export const Select: React.FC<any>;

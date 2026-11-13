@@ -13,10 +13,7 @@ async function decryptCalendarEvent(
   encryptedEvent: CalendarEvent,
   aesKey: CryptoKey
 ): Promise<CalendarEvent> {
-  console.log("decrypting event", encryptedEvent)
-  console.log('bien chiffré a priori')
   const payload = JSON.parse(await decryptString(encryptedEvent.description, aesKey));
-  console.log(payload);
   const restored: Partial<CalendarEvent> = {};
   const emptyDescription = !payload.description || (typeof payload.description === 'string' && payload.description.trim() === '');
   // Whitelist: the payload can never overwrite id, accountId, etc.
@@ -27,7 +24,6 @@ async function decryptCalendarEvent(
     // we do that because if there is no description, the description is used by the encrypted data and user see it instead of nothing
     encryptedEvent.description = '';
   }
-  console.log('final event dechiffré', { ...encryptedEvent, ...restored });
   return { ...encryptedEvent, ...restored };
 }
 
@@ -39,8 +35,6 @@ async function decryptCalendarEvent(
  *
  */
 export async function onFetchingEvents(events: CalendarEvent[]): Promise<CalendarEvent[]> {
-  console.log('appel une fois la')
-  console.log(events);
   let removeWhenError = host.plugin?.settings?.removeWhenError;
   if (removeWhenError === undefined) {
     removeWhenError = true; // default to removing events that cannot be decrypted
@@ -48,7 +42,6 @@ export async function onFetchingEvents(events: CalendarEvent[]): Promise<Calenda
   if (!events || events.length === 0) return [];
 
   const currentAccountId = await getCurrentAccountId();
-  console.log('here is the current account id:', currentAccountId);
   const keysByAccount = new Map<string, Promise<CalendarKeys | null>>();
   const notifiedAccounts = new Set<string>(); // avoid spamming the user with multiple modals for the same account in one fetch
 
@@ -75,12 +68,10 @@ export async function onFetchingEvents(events: CalendarEvent[]): Promise<Calenda
   events.map(async (event) => {
     if (!isEncryptedEvent(event)) return event; // legacy / already plain
     const accountId = event.accountName + '@' + serverID || currentAccountId;
-    console.log('Decrypting event with accountId:', accountId, 'event:', event);
     if (!accountId) return event;
 
     const keys = await keysFor(accountId);
     if (!keys) {
-      console.warn(notifiedAccounts);
       if (!notifiedAccounts.has(accountId)) {
         notifiedAccounts.add(accountId);
         await host.ui.alert({
@@ -95,14 +86,12 @@ export async function onFetchingEvents(events: CalendarEvent[]): Promise<Calenda
     try {
       return await decryptCalendarEvent(event, keys.dekAes);
     } catch (e) {
-      console.log(event)
       host.log.warn(`Could not decrypt event ${event.id}:`, e);
       
       return removeWhenError ? null : event;
     }
   })
 );
-console.log(results);
 return results.filter((event) => event !== null);
 
 }

@@ -1,7 +1,7 @@
 import { encryptString } from '../crypto/encrypt.ts';
 import { getKeys } from '../crypto/getKey.ts';
 import type { CalendarEvent } from '../types.ts';
-import { generateUUID, resolveAccountId } from '../util.ts';
+import { resolveAccountId } from '../util.ts';
 import { pickSensitive, PUBLIC_PLACEHOLDER, publicStart } from '../util.ts';
 import { createRecurrenceOccurrences, stripRecurrence } from '../expand.ts';
 import host from '@plugin-host';
@@ -89,7 +89,6 @@ export async function onCreatingEvent(data: { localEvent: Partial<CalendarEvent>
     // Occurrences are created without alerts (CalendarEventInput has no such field)
     // and stay fully encrypted.
     const created = await createRecurrenceOccurrences(localEvent);
-    console.log(`Récurrence: ${created} occurrence(s) supplémentaire(s) créée(s)`);
     localEvent = stripRecurrence(localEvent);
   }
 
