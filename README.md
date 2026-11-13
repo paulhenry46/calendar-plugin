@@ -1,22 +1,29 @@
 # Calendar Plugin
 This plugin is in beta stage.
-## Features
-### Features in 1.0.0
+
+Your events, but encrypted. I don't think there is anything else to add!
 - create, read, update, delete encrypted events.
-- no need to another passphrase : when you unlock the pgp key associated to the account of the event, the event can be decrypted.
+- no need to another passphrase : when you unlock the key associated to the account of the event, the event can be decrypted.
+- for reccurent events and events with alerts, see below
+
+## Quickstart
+
+## Compatibilty
+This plugin needs one of these Bulwark Plugins to work :
+- PGP True End to End
+- Aurion PGP
+
+In one of these 2 plugins, you must ensure you have a default key associated to the account which will be used to create events. There sould be a star icon on the default key. This way, you need only one passphrase for mails and calendar and you type it once.
+
+## Features
 ### Roadmap
-#### 1.0.1
-1. When user create a recrusive event, the plugin create all others events. Indeed, we don't want to let the server do this. recursuve event and normal events hsould seem same.
-2. If messaging is enabled for an event, we will not encrypt date/time data : we will warn the user about this. To message the user, the server need to know when, so we don't have choice.
-#### 1.0.2
-3. If the event is encryptped, show a lock icon next to the title
+1. If the event is encryptped, show a lock icon next to the title
 ### How does this compare with Proton Calendar ?
 | Event Property | Proton Calendar | Calendar Plugin |
 | --- | --- | --- |
 | **Start/End Time & Time Zone Information** | 🟢 Plaintext | 🔒 Encrypted* |
-| **Repetition Rule (RRULE) & Exclusions** | 🟢 Plaintext  | 🔒 Encrypted |
-| **Unique Event Identifier (UID)** | 🟢 Plaintext | 🟢 Plaintext |
-| **Alarm / Reminder Time Information** | 🟢 Plaintext | 🟢 Plaintext |
+| **Repetition** | 🟢 Plaintext  | 🔒 Encrypted |
+| **Alarm / Alert** | 🟢 Plaintext | 🟢 Plaintext |
 | **Title, Description, Location, Attendees** | 🔒 Encrypted | 🔒 Encrypted |
 
 *If users want to be messaged by the server to remind them the event, this information is not encrypted because the server need to know when the event happen. But this is encrypted by default.
@@ -52,10 +59,7 @@ Alerts are not supported on generated occurrences, this is a bulwark limitation.
 - the other occurrences stay **fully encrypted and have no alerts**;
 - you must **add alerts individually to each occurrence** you want to be notified about. Each occurrence you add an alert to becomes partially encrypted, and you are asked to confirm each time.
 
-## Compatibilty
-This plugin needs one of these PGP Plugins to work :
-- PGP True End to End
-- Aurion PGP
+
 ## Architecture
 We choose to rely on a master plugin for managing the keys. This master plugin can be PGP True End to End or Aurion PGP. This master plugin can share to child plugin, here the calendar plugin, keys and a passphrase derivated from master passphrase. Data stored by plugin is transfered to master Plugin and written to its indexedDB. As a result, the calendar PGP plugin doen't write anything on disk. This is delegated to master plugin which write per-account data, for instance :
 ```

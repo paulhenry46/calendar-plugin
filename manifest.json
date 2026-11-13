@@ -1,7 +1,7 @@
 {
   "id": "calendar-true-end-to-end",
   "name": "Calendar End-to-End",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "author": "Paulhenry Saux & Community",
   "description": "End-to-end Calendar for webmail: Encrypts and decrypts calendar events using the keys you use for emails.",
   "type": "ui-extension",
