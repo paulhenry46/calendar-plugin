@@ -39,6 +39,7 @@ async function decryptCalendarEvent(
  *
  */
 export async function onFetchingEvents(events: CalendarEvent[]): Promise<CalendarEvent[]> {
+  console.log('appel une fois la')
   console.log(events);
   let removeWhenError = host.plugin?.settings?.removeWhenError;
   if (removeWhenError === undefined) {
@@ -61,8 +62,7 @@ export async function onFetchingEvents(events: CalendarEvent[]): Promise<Calenda
         : getKeys(accountId).catch((e) => {
             lastFailureAt.set(accountId, Date.now());
             if (e instanceof CalendarCryptoError && e.code === 'NO_KEYS') return null; // nothing was ever encrypted
-            host.log.error('Calendar decryption unavailable:', e);
-            notifyThrottled(host.i18n.t(`calendar.error.${e instanceof CalendarCryptoError ? e.code : 'UNKNOWN'}`));
+            host.log.warn('Calendar decryption unavailable:', e);
             return null;
           });
       keysByAccount.set(accountId, p);
@@ -80,9 +80,10 @@ export async function onFetchingEvents(events: CalendarEvent[]): Promise<Calenda
 
     const keys = await keysFor(accountId);
     if (!keys) {
+      console.warn(notifiedAccounts);
       if (!notifiedAccounts.has(accountId)) {
         notifiedAccounts.add(accountId);
-        await host.ui.confirm({
+        await host.ui.alert({
           title: host.i18n.t('no_keys.title'),
           message: host.i18n.t('no_keys.message') + event.accountName,
         });

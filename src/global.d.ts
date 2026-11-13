@@ -34,6 +34,11 @@ declare module '@plugin-host' {
         danger?: boolean;
         confirmLabel?: string;
       }): Promise<boolean>;
+      alert(options: {
+        title: string;
+        message: string;
+        confirmLabel?: string;
+      }): Promise<any>;
     };
     user: {
       getAccounts(): Promise<AccountEntry[]>;
