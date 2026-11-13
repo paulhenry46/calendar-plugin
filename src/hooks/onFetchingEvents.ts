@@ -9,12 +9,11 @@ import { isEncryptedEvent, SENSITIVE_FIELDS } from '../util.ts';
 const FAILURE_TTL_MS = 5_000;
 const lastFailureAt = new Map<string, number>();
 
-export async function decryptCalendarEvent(
+async function decryptCalendarEvent(
   encryptedEvent: CalendarEvent,
   aesKey: CryptoKey
 ): Promise<CalendarEvent> {
   console.log("decrypting event", encryptedEvent)
-  if (!isEncryptedEvent(encryptedEvent)) return encryptedEvent;
   console.log('bien chiffré a priori')
   const payload = JSON.parse(await decryptString(encryptedEvent.description, aesKey));
   console.log(payload);
@@ -40,6 +39,7 @@ export async function decryptCalendarEvent(
  *
  */
 export async function onFetchingEvents(events: CalendarEvent[]): Promise<CalendarEvent[]> {
+  console.log(events);
   let removeWhenError = host.plugin?.settings?.removeWhenError;
   if (removeWhenError === undefined) {
     removeWhenError = true; // default to removing events that cannot be decrypted

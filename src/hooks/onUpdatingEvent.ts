@@ -4,7 +4,6 @@ import { getKeys } from '../crypto/getKey.ts';
 import type { CalendarEvent } from '../types.ts';
 import { resolveAccountId } from '../util.ts';
 import {
-  isEncryptedEvent,
   pickSensitive,
   publicStart,
   SENSITIVE_FIELDS,
@@ -76,6 +75,8 @@ export async function onUpdatingEvent(data: {localUpdates: Partial<CalendarEvent
   if (wantClear) {
     for (const f of CLEAR_WHEN_ALERTS) (updated as Record<string, unknown>)[f] = merged[f];
     Object.assign(updated, { start: merged.start, description: encryptedDescription });
+    delete updated.utcStart;
+    delete updated.utcEnd;
   } else {
     Object.assign(updated, { start: publicStart(merged.start), description: encryptedDescription });
     delete updated.utcStart;
