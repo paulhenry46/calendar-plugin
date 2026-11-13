@@ -1,6 +1,6 @@
 {
   "id": "calendar-true-end-to-end",
-  "name": "Calendar True End-to-End",
+  "name": "Calendar End-to-End",
   "version": "1.0.0",
   "author": "Paulhenry Saux & Community",
   "description": "End-to-end Calendar for webmail: Encrypts and decrypts calendar events using the keys you use for emails.",
@@ -12,19 +12,13 @@
     "calendar:write",
     "ui:settings-section",
     "app:lifecycle",
-    "admin:config",
     "account:read",
     "identity:read"
   ],
-  "httpOrigins": [
-  ],
   "entrypoint": "index.js",
-  "minAppVersion": "1.9.0",
+  "minAppVersion": "1.21.0",
   "icon": "media/icon.svg",
   "banner": "media/banner.svg",
-  "configSchema": {
-    
-  },
   "settingsSchema": {
     "removeWhenError": {
       "type": "boolean",
