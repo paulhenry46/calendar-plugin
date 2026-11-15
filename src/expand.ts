@@ -1,4 +1,3 @@
-import { encryptCalendarEvent } from './hooks/onCreatingEvent.ts';
 import type { CalendarEvent, CalendarEventInput, CalendarRecurrenceRule } from './types.ts';
 import host from '@plugin-host';
 
@@ -79,7 +78,7 @@ function periodDays(rule: CalendarRecurrenceRule, start: Date, k: number): Date[
         const days = rule.byMonthDay?.length ? rule.byMonthDay : [start.getUTCDate()];
         for (const d of days) {
           const day = d < 0 ? dim + d + 1 : d;
-          if (day >= 1 && day <= dim) out.push(new Date(Date.UTC(y, m, day))); // jour inexistant => omis (RFC 5545)
+          if (day >= 1 && day <= dim) out.push(new Date(Date.UTC(y, m, day)));
         }
       }
       break;
@@ -89,7 +88,7 @@ function periodDays(rule: CalendarRecurrenceRule, start: Date, k: number): Date[
       const y = y0 + k * interval;
       const m = m0;
       const d = start.getUTCDate();
-      if (d <= daysInMonth(y, m)) out.push(new Date(Date.UTC(y, m, d))); // 29 février => omis les années non bissextiles
+      if (d <= daysInMonth(y, m)) out.push(new Date(Date.UTC(y, m, d)));
       break;
     }
 
@@ -111,7 +110,7 @@ export function expandRecurrence(event: Partial<CalendarEvent>): string[] {
   limit.setUTCFullYear(limit.getUTCFullYear() + DEFAULT_HORIZON_YEARS);
   if (rule.until) {
     const u = parseLocal(rule.until);
-    if (!rule.until.includes('T')) u.setUTCHours(23, 59, 59); // until date seule => jour inclus
+    if (!rule.until.includes('T')) u.setUTCHours(23, 59, 59);
     limit = u;
   }
   const maxCount = Math.min(rule.count ?? Infinity, MAX_OCCURRENCES);
@@ -140,7 +139,6 @@ function shiftUtc(iso: string | null | undefined, deltaMs: number): string | nul
   return Number.isNaN(t) ? iso : new Date(t + deltaMs).toISOString();
 }
 
-/** Copie complète de l'événement initial, décalée à la date de l'occurrence, SANS récurrence. */
 function buildOccurrenceEvent(
   base: Partial<CalendarEvent>,
   start: string,
@@ -149,7 +147,7 @@ function buildOccurrenceEvent(
   const baseUid = sanitizeUid((base.uid ?? crypto.randomUUID()).split('@')[0]).slice(0, 100);
   const deltaMs = parseLocal(start).getTime() - parseLocal(base.start!).getTime();
 
-  const { id, originalId, baseEventId, ...rest } = base; // identifiants propres à l'événement initial
+  const { id, originalId, baseEventId, ...rest } = base;
   return {
     ...rest,
     uid: `${baseUid}-r${index}`,
@@ -174,7 +172,6 @@ export async function createRecurrenceOccurrences(base: Partial<CalendarEvent> )
     : undefined;
 
   for (let i = 0; i < others.length; i++) {
-    // 1. Occurrence complète, avec ses vraies dates
     const occurrence = buildOccurrenceEvent(base, others[i], i + 1);
 
     const input: CalendarEventInput = {

@@ -17,11 +17,11 @@ export interface CalendarKeys {
 }
 
 export type CalendarCryptoErrorCode =
-  | 'MASTER_UNAVAILABLE' // plugin maître absent, ou sans clé par défaut pour ce compte
-  | 'MASTER_LOCKED' // plugin maître présent mais clé par défaut verrouillée
-  | 'NO_KEYS' // le maître répond mais aucune clé n'existe pour ce compte
-  | 'STORE_FAILED' // le maître n'a pas confirmé le stockage des nouvelles clés
-  | 'UNWRAP_FAILED'; // enveloppe illisible (secret changé / données corrompues)
+  | 'MASTER_UNAVAILABLE'
+  | 'MASTER_LOCKED'
+  | 'NO_KEYS'
+  | 'STORE_FAILED'
+  | 'UNWRAP_FAILED';
 
 export class CalendarCryptoError extends Error {
   constructor(public code: CalendarCryptoErrorCode, message: string) {
@@ -91,7 +91,6 @@ export async function generateAndWrapCalendarKeys(secretFromMaster: string): Pro
   return { iv: bufferToBase64(iv), wrappedKeys: bufferToBase64(encrypted) };
 }
 
-// ─── Point d'entrée ─────────────────────────────────────────────────────
 
 const inflight = new Map<string, Promise<CalendarKeys>>();
 

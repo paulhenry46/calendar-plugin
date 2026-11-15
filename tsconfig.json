@@ -6,12 +6,12 @@
     "moduleResolution": "NodeNext",
     "allowImportingTsExtensions": true,
     "rewriteRelativeImportExtensions": true,
-    "jsx": "react",     
-    "lib": ["ESNext", "DOM"],           // Permet de gérer le JSX ou le React.createElement
-    "strict": true,                 // Active la vérification stricte des types
-    "esModuleInterop": true,        // Assure la compatibilité entre CommonJS et ES Modules
-    "skipLibCheck": true,           // Accélère la vérification en ignorant les types des node_modules
-    "isolatedModules": true         // Requis par esbuild pour la compilation fichier par fichier
+    "jsx": "react",
+    "lib": ["ESNext", "DOM"],
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "isolatedModules": true
   },
   "include": ["src/**/*", "src/*"],
 }
