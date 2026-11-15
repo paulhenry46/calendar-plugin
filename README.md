@@ -1,19 +1,25 @@
 # Calendar Plugin
-This plugin is in beta stage.
 
-Your events, but encrypted. I don't think there is anything else to add!
+Your events encrypted, no password. I don't think there is anything else to add!
 - create, read, update, delete encrypted events.
 - no need to another passphrase : when you unlock the key associated to the account of the event, the event can be decrypted.
 - for reccurent events and events with alerts, see below
 
-## Quickstart
+> [!NOTE]
+> This plugin doesn't write anything on disk. Unencrypted data never leaves RAM.
 
-## Compatibilty
-This plugin needs one of these Bulwark Plugins to work :
-- PGP True End to End
-- Aurion PGP
+## Usage
+> [!CAUTION]
+>This plugin needs one of these Bulwark Plugins to work. These are called master plugin later.
+>- PGP True End to End
+>- Aurion PGP
 
-In one of these 2 plugins, you must ensure you have a default key associated to the account which will be used to create events. There sould be a star icon on the default key. This way, you need only one passphrase for mails and calendar and you type it once.
+In master plugin, you must ensure you have a default key associated to the account which will be used to create events. There should be a star icon on the default key. This way, you need only one passphrase for mails and calendar and you type it once. In setting page, you can check if your configuration is correct. The settings page is usefull to check but you won't need to visit it when you want to decrypt events. If your email key is unlocked, the decryption process will happen without asking.
+
+<img src="./media/calendar_screen.png">
+
+> [!WARNING]
+> If you use the "dangerous storage" option in master plugin, your events will be automatically decrypted when launching the webmail and accessing the calendar. As a result, someone with disk access could decrypt your emails and your events.
 
 ## Features
 ### Roadmap
@@ -65,6 +71,23 @@ We choose to rely on a master plugin for managing the keys. This master plugin c
 ```
 user@aurionmail.org@mail.aurionmail.org :  {iv: 'vxKMz2zIjgB/OarM', wrappedKeys: 'olqB1i3s5qZlbTYMc56mhoNXDV8x6gvdd62FQXUGHoYB1QTzqT/63XG1Joori989p94i62t51cqrzPZijmkAIq68fsVd/YElLkpA1Fr6sAXrwB+/26BFhDAysWjl2oxkkp3U8Nvd0WmGF6OnkW4DAdI3+ZS9Yj20pu4oD0DhGNhweyZDCf3JXZuPPIp4qRkt4sMEvUO3uAZ9Qyy/uo4plh6q5m8uyeJ2p+LJyC/a'}
 ```
+### Encryption Steps
+```mermaid
+flowchart TD
+    A[Master Plugin] --> B[Secret]
+    A --> C["Encrypted Enveloppe (Data + iv)"]
+    B-- "crypto.subtle.digest(SHA-256)" --> D[Encrypted Enveloppe Key]
+    D --> E[AES Key]
+    D --> F[HMAC Key]
+    C --> E[AES Key]
+    C --> F[HMAC Key]
+    J(Event description field) --> G
+    J --> H
+    G(Event encrypted Data) --> E
+    H(Event IV) --> E
+    E --> I(Event Data)
+```
+
 ### How it works ?
 1. When installing this plugin, it ask the master plugin if it has data, i.e. the calendar keys for the account.
 2. If no, master answer only with a derivated secret from passphrase : calendar plugin generate keys, encrypt themn with received secret and send them to master plugin.
