@@ -88,7 +88,7 @@ flowchart TD
     E --> I(Event Data)
 ```
 
-### How it works ?
+### How does it work ?
 1. When installing this plugin, it ask the master plugin if it has data, i.e. the calendar keys for the account.
 2. If no, master answer only with a derivated secret from passphrase : calendar plugin generate keys, encrypt themn with received secret and send them to master plugin.
 3. master plugin encrypt them with a passphrase derivated from master passphrase
