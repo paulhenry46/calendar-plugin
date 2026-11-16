@@ -1,59 +1,86 @@
 import type { SessionKeysEntry } from '../types.ts';
 
 const CHANNEL_NAME = 'calendar-session-bus';
-const REQUEST_TIMEOUT_MS = 300;
+const SESSION_HOST_PROP = '__calendarSessionHost';
+const SESSION_HOST_METHODS = ['setKey', 'isUnlocked'] as const;
 
+let _isSessionHost = false;
 let _sessionKeys: Record<string, SessionKeysEntry> = {};
 
-type SessionMessage =
-  | { type: 'PING_STATUS'; requestId: string }
-  | { type: 'PONG_STATUS'; requestId: string; isUnlocked: boolean }
-  | { type: 'SET_KEY'; keyEntry: SessionKeysEntry }
-  | { type: 'KEY_UPDATED'; isUnlocked: boolean }
-  | { type: 'CLEAR_KEY'; id: string }
-  | { type: 'REQUEST_KEY_DATA'; requestId: string; keyId: string }
-  | { type: 'RESPONSE_KEY_DATA'; requestId: string; keyEntry: SessionKeysEntry | null };
+interface CalendarSessionHost {
+  setKey(keyEntry: SessionKeysEntry): void;
+  isUnlocked(id?: string): boolean;
+}
 
-const newRequestId = () => crypto.randomUUID();
+type SessionMessage =
+  | { type: 'KEY_UPDATED'; isUnlocked: boolean }
+  | { type: 'CLEAR_KEY'; id: string };
+
 const hasAnyKey = () => Object.keys(_sessionKeys).length > 0;
 
 let listenerChannel: BroadcastChannel | null = null;
 
+function notifyKeyUpdated(isUnlocked: boolean): void {
+  const channel = new BroadcastChannel(CHANNEL_NAME);
+  channel.postMessage({ type: 'KEY_UPDATED', isUnlocked } satisfies SessionMessage);
+  channel.close();
+}
+
+function findCalendarSessionHost(): CalendarSessionHost | null {
+  let frames: any;
+  try {
+    frames = (globalThis as any).parent?.frames;
+  } catch {
+    return null;
+  }
+
+  const count = Number(frames?.length) || 0;
+  for (let i = 0; i < count; i++) {
+    try {
+      const candidate = frames[i]?.[SESSION_HOST_PROP];
+      if (candidate && SESSION_HOST_METHODS.every((name) => typeof candidate[name] === 'function')) {
+        return candidate as CalendarSessionHost;
+      }
+    } catch {
+    
+    }
+  }
+  return null;
+}
+
 export function initBackgroundSessionListener(): void {
   if (listenerChannel) return;
+  _isSessionHost = true;
+
+  const sessionHost: CalendarSessionHost = Object.freeze({
+    setKey(keyEntry: SessionKeysEntry) {
+      if (keyEntry?.id && keyEntry.aesKey && keyEntry.hmacKey) {
+        _sessionKeys[keyEntry.id] = structuredClone(keyEntry);
+        notifyKeyUpdated(true);
+      }
+    },
+    isUnlocked(id?: string): boolean {
+      return id ? !!_sessionKeys[id] : hasAnyKey();
+    },
+  });
+
+  Object.defineProperty(globalThis, SESSION_HOST_PROP, {
+    value: sessionHost,
+    configurable: true,
+  });
+
   const channel = new BroadcastChannel(CHANNEL_NAME);
   listenerChannel = channel;
 
   channel.onmessage = (event: MessageEvent<SessionMessage>) => {
     const msg = event.data;
-    switch (msg.type) {
-      case 'PING_STATUS':
-        channel.postMessage({ type: 'PONG_STATUS', requestId: msg.requestId, isUnlocked: hasAnyKey() });
-        break;
-
-      case 'SET_KEY':
-        if (msg.keyEntry?.id && msg.keyEntry.aesKey && msg.keyEntry.hmacKey) {
-          _sessionKeys[msg.keyEntry.id] = msg.keyEntry;
-          channel.postMessage({ type: 'KEY_UPDATED', isUnlocked: true });
-        }
-        break;
-
-      case 'CLEAR_KEY':
-        if (msg.id) {
-          delete _sessionKeys[msg.id];
-        } else {
-          _sessionKeys = {};
-        }
-        channel.postMessage({ type: 'KEY_UPDATED', isUnlocked: hasAnyKey() });
-        break;
-
-      case 'REQUEST_KEY_DATA': {
-        const keyEntry = _sessionKeys[msg.keyId];
-        if (keyEntry) {
-          channel.postMessage({ type: 'RESPONSE_KEY_DATA', requestId: msg.requestId, keyEntry });
-        }
-        break;
+    if (msg.type === 'CLEAR_KEY') {
+      if (msg.id) {
+        delete _sessionKeys[msg.id];
+      } else {
+        _sessionKeys = {};
       }
+      channel.postMessage({ type: 'KEY_UPDATED', isUnlocked: hasAnyKey() } satisfies SessionMessage);
     }
   };
 }
@@ -61,79 +88,59 @@ export function initBackgroundSessionListener(): void {
 export function closeBackgroundSessionListener(): void {
   listenerChannel?.close();
   listenerChannel = null;
+  _isSessionHost = false;
+  _sessionKeys = {};
 }
 
 
 export function getBackgroundSessionKey(id: string): SessionKeysEntry | null {
-  return _sessionKeys[id] || null;
+  return _isSessionHost ? (_sessionKeys[id] || null) : null;
+}
+
+/** true if the tab holds a key. */
+export async function isCalendarKeyUnlocked(accountId?: string): Promise<boolean> {
+  if (_isSessionHost) {
+    return accountId ? !!_sessionKeys[accountId] : hasAnyKey();
+  }
+  return findCalendarSessionHost()?.isUnlocked(accountId) ?? false;
 }
 
 
-
-/** Ask the key from the background. */
-export function fetchKeyFromBackground(accountId: string): Promise<SessionKeysEntry | null> {
-  return new Promise((resolve) => {
-    const channel = new BroadcastChannel(CHANNEL_NAME);
-    const requestId = newRequestId();
-
-    const timeout = setTimeout(() => {
-      channel.close();
-      resolve(null);
-    }, REQUEST_TIMEOUT_MS);
-
-    channel.onmessage = (event: MessageEvent<SessionMessage>) => {
-      const msg = event.data;
-      if (msg.type === 'RESPONSE_KEY_DATA' && msg.requestId === requestId && msg.keyEntry) {
-        clearTimeout(timeout);
-        channel.close();
-        resolve(msg.keyEntry);
-      }
-    };
-
-    channel.postMessage({ type: 'REQUEST_KEY_DATA', requestId, keyId: accountId } satisfies SessionMessage);
-  });
-}
-
-/** true if at least one tab (or this one) holds a key. */
-export async function checkIsKeyUnlocked(): Promise<boolean> {
-  if (hasAnyKey()) return true;
-  return new Promise((resolve) => {
-    const channel = new BroadcastChannel(CHANNEL_NAME);
-    const requestId = newRequestId();
-
-    const timeout = setTimeout(() => {
-      channel.close();
-      resolve(false);
-    }, REQUEST_TIMEOUT_MS);
-
-    channel.onmessage = (event: MessageEvent<SessionMessage>) => {
-      const msg = event.data;
-      if (msg.type === 'PONG_STATUS' && msg.requestId === requestId && msg.isUnlocked) {
-        clearTimeout(timeout);
-        channel.close();
-        resolve(true);
-      }
-    };
-
-    channel.postMessage({ type: 'PING_STATUS', requestId } satisfies SessionMessage);
-  });
-}
-
-/** memory the key locally (immediate effect) then broadcast it to other tabs. */
 export function broadcastUnlockKey(keyEntry: SessionKeysEntry): void {
-  _sessionKeys[keyEntry.id] = keyEntry;
-  const channel = new BroadcastChannel(CHANNEL_NAME);
-  channel.postMessage({ type: 'SET_KEY', keyEntry } satisfies SessionMessage);
-  channel.close();
+  if (_isSessionHost) {
+    _sessionKeys[keyEntry.id] = keyEntry;
+    notifyKeyUpdated(true);
+    return;
+  }
+
+  const host = findCalendarSessionHost();
+  if (!host) {
+    console.warn('[Calendar] No background frame found in this tab: key not stored.');
+    return;
+  }
+  host.setKey(keyEntry);
 }
 
 /** Effectively lock the key `keyId` (or all if omitted), here and in the other tabs. */
 export function broadcastLockKey(keyId?: string): void {
-  if (keyId) delete _sessionKeys[keyId];
-  else _sessionKeys = {};
+  if (_isSessionHost) {
+    if (keyId) delete _sessionKeys[keyId];
+    else _sessionKeys = {};
+    notifyKeyUpdated(hasAnyKey());
+    return;
+  }
+
+
   const channel = new BroadcastChannel(CHANNEL_NAME);
   channel.postMessage({ type: 'CLEAR_KEY', id: keyId ?? '' } satisfies SessionMessage);
   channel.close();
+}
+
+export async function fetchKeyFromBackground(accountId: string): Promise<boolean> {
+  if (_isSessionHost) {
+    return !!_sessionKeys[accountId];
+  }
+  return findCalendarSessionHost()?.isUnlocked(accountId) ?? false;
 }
 
 export function subscribeToKeyUpdates(callback: (isUnlocked: boolean) => void): () => void {

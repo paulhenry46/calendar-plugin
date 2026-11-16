@@ -1,6 +1,5 @@
 import {
   broadcastUnlockKey,
-  fetchKeyFromBackground,
   getBackgroundSessionKey,
 } from './broadcastChannel.ts';
 import { base64ToBuffer, bufferToBase64 } from './encrypt.ts';
@@ -112,11 +111,6 @@ export function getKeys(accountId: string, opts: GetKeysOptions = {}): Promise<C
 }
 
 async function loadKeys(accountId: string, opts: GetKeysOptions): Promise<CalendarKeys> {
-  const fromTab = await fetchKeyFromBackground(accountId);
-  if (fromTab) {
-    broadcastUnlockKey(fromTab); // met aussi en cache localement
-    return { dekAes: fromTab.aesKey, dekHmac: fromTab.hmacKey };
-  }
 
   const response = await getDataFromMaster(accountId);
   if (response.state === 'unavailable') {
