@@ -33,6 +33,7 @@
       "hint.master_locked" : "Master key is locked. Please unlock your private key.",
       "hint.master_unlocked_keys_loaded" : "Your calendar keys are unlocked.",
       "hint.master_unlocked_keys_not_loaded" : "Master keys are unlocked, but calendar keys are not loaded.",
+      "hint.master_unlocked_keys_not_created" : "Master keys are unlocked, but calendar keys are not created. There will be created when you create your first encrypted event. Congrats, you are ready!",
       "action.retry" : "Retry",
       "action.load" : "Load",
       "action.generate_key" : "Generate key",
