@@ -1,80 +1,85 @@
 import type { LocalEncryptedEnvelope } from './getKey.ts';
 
-const CHANNEL_NAME = 'pgp-session-bus';
 const PLUGIN_STORAGE_SLOT_NAME = 'pgp-calendar-plugin';
-const MASTER_TIMEOUT_MS = 1500;
+const SESSION_HOST_PROP = '__pgpSessionHost';
+const SESSION_HOST_METHODS = [
+  'setKey',
+  'isUnlocked',
+  'initIndex',
+  'updateIndexEntry',
+  'getCustomSecret',
+  'addCustomSecret',
+] as const;
 
-const GRACE_AFTER_NEGATIVE_MS = 400;
+interface PgpSessionHost {
+  isUnlocked(keyId?: string): boolean;
+  getCustomSecret(salt: string, accountId: string): Promise<{ secret: string | null; data?: unknown }>;
+  addCustomSecret(salt: string, accountId: string, data: unknown): Promise<boolean>;
+}
 
 export type MasterReply =
   | { state: 'ok'; secret: string; data: LocalEncryptedEnvelope | undefined }
   | { state: 'locked' }
   | { state: 'unavailable' };
 
-export function getDataFromMaster(accountId: string): Promise<MasterReply> {
-  return new Promise((resolve) => {
-    const channel = new BroadcastChannel(CHANNEL_NAME);
-    const requestId = crypto.randomUUID();
-    let sawLocked = false;
-    let timer: ReturnType<typeof setTimeout>;
+function findPgpSessionHost(): PgpSessionHost | null {
+  let frames: any;
+  try {
+    frames = (globalThis as any).parent?.frames;
+  } catch {
+    return null;
+  }
 
-    const finish = (reply: MasterReply) => {
-      clearTimeout(timer);
-      channel.close();
-      resolve(reply);
-    };
-    const finishNegative = () => finish(sawLocked ? { state: 'locked' } : { state: 'unavailable' });
-
-    timer = setTimeout(finishNegative, MASTER_TIMEOUT_MS);
-
-    channel.onmessage = (event: MessageEvent<any>) => {
-      const d = event.data;
-      if (d?.type !== 'RESPONSE_CUSTOM_SECRET' || d.requestId !== requestId) return;
-
-      if (typeof d.secret === 'string' && d.secret.length > 0) {
-        finish({ state: 'ok', secret: d.secret, data: toEnvelope(d.data) });
-      } else if (!sawLocked) {
-        sawLocked = true;
-        clearTimeout(timer);
-        timer = setTimeout(finishNegative, GRACE_AFTER_NEGATIVE_MS);
+  const count = Number(frames?.length) || 0;
+  for (let i = 0; i < count; i++) {
+    try {
+      const candidate = frames[i]?.[SESSION_HOST_PROP];
+      if (candidate && SESSION_HOST_METHODS.every((name) => typeof candidate[name] === 'function')) {
+        return candidate as PgpSessionHost;
       }
-    };
-
-    channel.postMessage({ type: 'REQUEST_CUSTOM_SECRET', requestId, salt: PLUGIN_STORAGE_SLOT_NAME, accountId });
-  });
+    } catch {
+      
+    }
+  }
+  return null;
 }
 
-export function putKeysToMaster(accountId: string, envelope: LocalEncryptedEnvelope): Promise<boolean> {
-  return new Promise((resolve) => {
-    const channel = new BroadcastChannel(CHANNEL_NAME);
-    const requestId = crypto.randomUUID();
-    let timer: ReturnType<typeof setTimeout>;
+export async function getDataFromMaster(accountId: string): Promise<MasterReply> {
+  const host = findPgpSessionHost();
+  if (!host) {
+    return { state: 'unavailable' };
+  }
 
-    const finish = (ok: boolean) => {
-      clearTimeout(timer);
-      channel.close();
-      resolve(ok);
-    };
-    timer = setTimeout(() => finish(false), MASTER_TIMEOUT_MS);
+  try {
+    const res = await host.getCustomSecret(PLUGIN_STORAGE_SLOT_NAME, accountId);
 
-    channel.onmessage = (event: MessageEvent<any>) => {
-      const d = event.data;
-      if (d?.type !== 'RESPONSE_ADD_CUSTOM_SECRET' || d.requestId !== requestId) return;
-      if (d.ok === true) finish(true);
-      else {
-        clearTimeout(timer);
-        timer = setTimeout(() => finish(false), GRACE_AFTER_NEGATIVE_MS);
-      }
-    };
+    if (typeof res?.secret === 'string' && res.secret.length > 0) {
+      return {
+        state: 'ok',
+        secret: res.secret,
+        data: toEnvelope(res.data),
+      };
+    }
 
-    channel.postMessage({
-      type: 'REQUEST_ADD_CUSTOM_SECRET',
-      requestId,
-      salt: PLUGIN_STORAGE_SLOT_NAME,
-      accountId,
-      data: envelope,
-    });
-  });
+    return { state: 'locked' };
+  } catch (err) {
+    console.error('[pgp-calendar-plugin] Failed to get custom secret from master:', err);
+    return { state: 'unavailable' };
+  }
+}
+
+export async function putKeysToMaster(accountId: string, envelope: LocalEncryptedEnvelope): Promise<boolean> {
+  const host = findPgpSessionHost();
+  if (!host) {
+    return false;
+  }
+
+  try {
+    return await host.addCustomSecret(PLUGIN_STORAGE_SLOT_NAME, accountId, envelope);
+  } catch (err) {
+    console.error('[pgp-calendar-plugin] Failed to put keys to master:', err);
+    return false;
+  }
 }
 
 /**
