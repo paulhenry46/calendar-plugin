@@ -34,6 +34,7 @@ export function SettingsSection() {
     const response = await getDataFromMaster(accountId);
     if (response.state === 'unavailable') return 'master_unavailable';
     if (response.state === 'locked') return 'master_locked';
+    console.log(response.data);
     return response.data ? 'locked' : 'no_keys';
   };
 
@@ -114,6 +115,12 @@ export function SettingsSection() {
         color: 'var(--color-success, #16a34a)',
         border: 'color-mix(in srgb, var(--color-success, #16a34a) 22%, transparent)',
         labelKey: 'hint.master_unlocked_keys_loaded',
+      },
+      no_keys: {
+        bg: 'color-mix(in srgb, var(--color-success, #16a34a) 8%, transparent)',
+        color: 'var(--color-success, #16a34a)',
+        border: 'color-mix(in srgb, var(--color-success, #16a34a) 22%, transparent)',
+        labelKey: 'hint.master_unlocked_keys_not_created',
       },
       locked: {
         bg: 'color-mix(in srgb, var(--color-primary, #3b82f6) 8%, transparent)',
