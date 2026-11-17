@@ -12,8 +12,7 @@
     "calendar:write",
     "ui:settings-section",
     "app:lifecycle",
-    "account:read",
-    "identity:read"
+    "account:read"
   ],
   "entrypoint": "index.js",
   "minAppVersion": "1.21.0",
